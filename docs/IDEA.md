@@ -6,6 +6,11 @@
 
 **Status:** Hackathon concept and proposed MVP — not a claim that the platform is already implemented.  
 **Event:** Solana × Major League Hacking, November 6–8, 2026.  
+**Official hackathon links:**
+- **MLH registration, schedule, judging direction, and resources:** https://events.mlh.com/events/15200-solana-hackathon
+- **MLH event overview, prize categories, and submission:** https://www.mlh.com/events/solana-hackathon
+
+**Key event timing (IST):** Hacking starts Friday, November 6 at 10:30 PM; the initial submission is due Sunday, November 8 at 8:30 PM; **final submission is due Sunday, November 8 at 10:15 PM**. Confirm any changes on the official event pages.  
 **Repository:** https://github.com/ThunderKhan/alloc
 
 ---
@@ -199,7 +204,53 @@ We should be precise about the novelty claim. **Pay-per-use APIs, blockchain mic
 
 Alloc borrows the underlying economic and infrastructure patterns rather than attempting to reproduce those projects or their full feature sets.
 
-## 9. What the judges should see in a live demo
+## 9. How AI agents fit into Alloc
+
+Alloc is not limited to people clicking a **Pay & Run** button. Another application—or an **AI agent**—could act as the buyer.
+
+### What is an AI agent in this context?
+
+An AI agent is software that decides when to call tools in order to complete a task. For example, a research agent may need an image classifier to understand an image. Rather than subscribe to a model-hosting platform, the agent could pay for exactly one classification and use the result in its work.
+
+Alloc would expose the **same priced inference service** to both human users and agents:
+
+1. **Discover a model/tool.** The agent learns what one inference does, its input requirements, its cost, and the model/compute revenue split.
+2. **Request an inference.** The agent submits an image or text and obtains a uniquely identified quote or request.
+3. **Authorize payment.** A wallet controlled by the agent's operator (or an explicitly approved payment tool) signs the required Devnet transaction. The agent should have a hard spending limit; the LLM must **never receive a wallet private key**.
+4. **Verify and execute.** Alloc's backend checks the on-chain payment and runs the off-chain model once.
+5. **Return a tool result.** The agent receives structured inference output and the verifiable transaction receipt, then continues its task.
+
+The economic concept is **machine-to-machine micropayments**: software can purchase a narrowly defined AI capability when needed, while Solana distributes its payment to the model author and compute provider.
+
+### An example an MLH judge can understand
+
+> "I am an inventory assistant. Count the objects in this product photo."
+
+The assistant determines that it needs the image-analysis tool. Alloc advertises a price of **0.01 test SOL**. After the operator approves the payment, Alloc splits the money 70/30 between the model creator and the compute provider, runs the actual image model, and returns an answer plus a transaction receipt.
+
+This is **not** an agent trading cryptocurrency or making financial decisions. It is an agent *buying a useful AI computation*.
+
+### Why this matches the hackathon's AI track
+
+The official MLH AI track explicitly mentions **agents that act on-chain**, **machine payments for AI services**, and **verifiability**. Alloc combines a real AI inference call with a real Solana settlement, so both technologies serve a purpose.
+
+- AI provides the actual analysis or prediction.
+- Solana distributes the per-inference payment and provides an independently inspectable receipt.
+- A consuming agent can call the same service programmatically rather than manually operating a web page.
+
+See the official [hackathon schedule and AI-track description](https://events.mlh.com/events/15200-solana-hackathon) and [event/prizes page](https://www.mlh.com/events/solana-hackathon).
+
+### Scope: what is promised and what is optional?
+
+**Hackathon core (required):** One human-triggered, working inference with a correct Solana Devnet revenue split and a backend that refuses missing, incorrect, or reused payments.
+
+**Optional stretch, only if the core works:** Expose that same paid inference as **one callable tool** for a scripted or AI-driven assistant, with user approval or strictly limited Devnet spending. Use the existing inference gateway; do not introduce a second billing protocol.
+
+**Not in the two-day MVP:** An open agent marketplace, fully autonomous real-money wallets, unrestricted spending, an agent-to-agent trading network, or a general-purpose agent framework.
+
+This keeps the important distinction clear: **Alloc's initial product is paid AI inference, not an autonomous AI-agent platform.** The ability for agents to buy inference is a natural interface to the same settlement primitive.
+
+## 10. What the judges should see in a live demo
 
 **Successful path (the main demo):**
 
@@ -219,7 +270,7 @@ Alloc borrows the underlying economic and infrastructure patterns rather than at
 
 We can do all of this using our own test wallets and infrastructure. **No audience, paying customers, public compute providers, or actual buyers are required.**
 
-## 10. Important limitations and honest claims
+## 11. Important limitations and honest claims
 
 There is a crucial distinction between **settling a payment correctly** and **guaranteeing that the paid computation was delivered**.
 
@@ -235,7 +286,7 @@ For the hackathon:
 
 These limitations are part of the design, not hidden features.
 
-## 11. Why this is realistic in two days
+## 12. Why this is realistic in two days
 
 Alloc's core engineering task is a single chain of events:
 
@@ -256,7 +307,7 @@ We can evaluate completion objectively:
 
 These are **acceptance criteria**, not a claim that the checks have already passed.
 
-## 12. Hackathon positioning
+## 13. Hackathon positioning
 
 **Primary target:** MLH Solana Hackathon — **AI Track**.  
 **Secondary target:** **Top 3 Overall**.  
@@ -272,7 +323,7 @@ The broader ambition is an open economy for AI model creation and compute. **The
 
 ---
 
-## 13. Future direction (not part of the hackathon MVP)
+## 14. Future direction (not part of the hackathon MVP)
 
 If the first payment-and-inference loop proves useful, possible later work includes provider selection, independently hosted models, more sophisticated pricing, settlement smart contracts, delivery guarantees, and agent-to-agent payments.
 
