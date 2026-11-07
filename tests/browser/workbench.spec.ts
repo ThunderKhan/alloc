@@ -59,7 +59,7 @@ test("client rejects non-image before creating any quote", async ({page}) => {
   await page.locator('input[type="file"]').setInputFiles({
     name:"not-an-image.gif", mimeType:"image/gif", buffer:Buffer.from("GIF89a"),
   });
-  await expect(page.getByRole("alert")).toContainText("JPEG or PNG");
+  await expect(page.locator(".error[role=alert]").first()).toContainText("JPEG or PNG");
   expect(quoteRequests).toBe(0);
   await expect(page.getByRole("button", {name:/Validate & lock quote/i})).toBeDisabled();
 });
