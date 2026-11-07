@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useClient } from "@solana/react";
 import { useConnect, useConnectedWallet, useDisconnect, useWallets, useWalletStatus } from "@solana/kit-plugin-wallet/react";
-import { getBase64Decoder, getBase64Encoder, getTransactionDecoder, getTransactionEncoder } from "@solana/kit";
+import { address, assertIsTransactionWithinSizeLimit, getBase64Decoder, getBase64Encoder, getTransactionDecoder, getTransactionEncoder, type Blockhash } from "@solana/kit";
 import { ArrowUpRight, Check, Copy, ImagePlus, RefreshCw, Wallet, ShieldCheck, AlertTriangle, ScanSearch } from "lucide-react";
 import type { AppClient } from "@/app/providers";
 import { Button } from "@/components/ui/button";
@@ -157,15 +157,24 @@ export default function Workbench() {
       if (!("signTransactions" in signer)) {
         throw new Error("This wallet cannot sign without broadcasting. Choose a wallet supporting signTransaction.");
       }
-      const tx = getTransactionDecoder().decode(getBase64Encoder().encode(body.unsignedTransactionBase64));
-      // Wallet may modify the transaction; server rechecks byte-for-byte and refuses changes.
-      // A wallet partial signer signs the exact compiled message; it does not broadcast.
-      // signTransactionWithSigners takes a transaction, not (signers, transaction).
-      // Attach only the returned payer signature and keep every message byte unchanged.
+      const decoded = getTransactionDecoder().decode(getBase64Encoder().encode(body.unsignedTransactionBase64));
+      // Decoded wire bytes do not retain Kit's off-wire lifetime metadata.
+      // Reattach the *server-provided* blockhash lifetime for wallet signer typing,
+      // while the gateway independently rejects any changed message.
+      const tx = {
+        ...decoded,
+        lifetimeConstraint: {
+          blockhash: body.blockhash as Blockhash,
+          lastValidBlockHeight: BigInt(body.lastValidBlockHeight),
+        },
+      };
+      assertIsTransactionWithinSizeLimit(tx);
+      const signerAddress = address(connected.account.address);
+      // A wallet partial signer signs but never broadcasts; preserve exact message bytes.
       const [signedByWallet] = await signer.signTransactions([tx]);
-      const signerSignature = signedByWallet?.[connected.account.address];
+      const signerSignature = signedByWallet?.[signerAddress];
       if (!signerSignature) throw new Error("Wallet did not sign the required payer account");
-      const signed = { ...tx, signatures: { ...tx.signatures, [connected.account.address]: signerSignature } };
+      const signed = { ...tx, signatures: { ...tx.signatures, [signerAddress]: signerSignature } };
       const signedBase64 = getBase64Decoder().decode(getTransactionEncoder().encode(signed));
       setWorking("Submitting signed payment");
       submittedToGateway = true;
