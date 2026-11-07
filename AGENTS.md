@@ -2,7 +2,7 @@
 
 ## Read before changing code
 
-Read docs/CONTEXT.md, docs/MVP.md, and the current milestone in docs/IMPLEMENTATION_PLAN.md. For affected work, read docs/PRD.md, docs/ARCHITECTURE.md, docs/API.md, docs/SECURITY.md, and docs/TESTING.md. Use docs/UI_UX.md for the interface and docs/DEMO.md for the visible proof.
+Read docs/CONTEXT.md, docs/MVP.md, and the current milestone in docs/IMPLEMENTATION_PLAN.md. For affected work, read docs/PRD.md, docs/ARCHITECTURE.md, docs/API.md, docs/SECURITY.md, and docs/TESTING.md. Use docs/design.md (the copied Vercel-inspired reference) and docs/UI_UX.md (component sources, sizing/accessibility precedence, and app behavior) for the interface and docs/DEMO.md for the visible proof.
 
 The existing concept file is docs/IDEA.md (singular, uppercase). Do not create a competing ideas.md. CONTEXT uses the supplied context-pack format, not the unrelated event rules.
 

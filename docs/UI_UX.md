@@ -1,5 +1,22 @@
 # Alloc — UI/UX specification
 
+## Design source and component reuse
+
+Use [design.md](design.md) as the visual foundation. It is an **unmodified copy** of Dima Braven's community-authored Vercel-inspired reference, not an official Vercel specification or an accessibility/performance certification.
+
+- Pinned source: https://github.com/dimabraven/design-md/blob/f74ca151f92af178f1e0b93f2191e5ec77b33203/examples/vercel.md
+- Upstream file/blob SHA: `c03c7c481438fa26835ee40d16757b239c74c219`.
+- License: MIT, copyright (c) 2026 Dima Braven; full notice retained in [DESIGN_LICENSE.txt](DESIGN_LICENSE.txt).
+- Preserve the copied file verbatim. Record Alloc's functional, responsive, sizing, and accessibility requirements here rather than rewriting the source reference.
+
+| Source | Reuse in Alloc | Selection rule |
+| --- | --- | --- |
+| [shadcn/ui components](https://ui.shadcn.com/docs/components) · [source](https://github.com/shadcn-ui/ui) | Buttons, cards, fields, dialogs, badges, skeletons, tooltips | Main UI foundation; copy only needed components and retain MIT notices |
+| [Wallet UI](https://wallet-ui.dev/) · [source](https://github.com/wallet-ui/wallet-ui) | Wallet selector, connection controls, connected-wallet menu | Preferred wallet component candidate; verify compatible Kit/React versions and exact transaction signing at M0 |
+| [coss ui / Origin UI](https://github.com/cosscom/ui) | Optional reference for image upload/preview interactions and forms | MIT alternative; Origin is a legacy snapshot. Do not install a second full component system alongside shadcn |
+
+The checkout review, two-beneficiary allocation, payment states, result, and receipt are Alloc-specific compositions of these components. Wallet connection does not replace payment verification. No generic checkout or wallet library is assumed to implement our split/memo/replay contract. Lock compatible versions and preserve third-party attribution before reusing code; this documentation change does not install packages.
+
 ## Direction
 
 A compact **settlement workbench**: technical, calm, evidence-first. The memorable element is a clear two-recipient allocation bar attached to the actual inference receipt. Avoid a marketplace landing page, fake analytics, crypto prices, or a decorative dashboard.
@@ -19,24 +36,41 @@ One route `/`. Desktop: task/input at left, quote and receipt at right. After co
 
 Place “Prepaid trusted compute. Payment can succeed even if inference fails; automatic refunds are not implemented” beside payment review, not buried in a footer. Clarify upstream model authorship and demo recipient identity.
 
-## Visual tokens
+## Visual foundation and sizing
 
-| Token | Value / rule |
+The Vercel-inspired reference replaces the previous charcoal/green/IBM Plex theme. Do not combine the two themes. Follow its black/neutral surfaces, Geist typography, bordered panels, restrained semantic color, and component geometry.
+
+| Item | Selected reference / implementation rule |
 | --- | --- |
-| Canvas | #101716 |
-| Surface | #192421 |
-| Main text | #F1F5F0 |
-| Secondary text | #B8C8BE |
-| Main action / allocation accent | #B8ED88 with dark text |
-| Border | #40534A |
-| Error | #FFB4A8; include text/icon |
-| Spacing | 4, 8, 12, 16, 24, 32, 48 px |
-| Corners | 8–12 px, consistent |
-| Type | IBM Plex Sans body; IBM Plex Mono amounts/addresses; self-host/cache |
-| Body | 16 px; metadata at least 14 px |
-| Measure | Content width at most 1120 px; readable paragraph length |
+| Canvas / card / nested surface | #000000 / #111111 / #1A1A1A |
+| Main / secondary text | #EDEDED / #A1A1AA |
+| Border | #333333; #555555 for emphasized boundaries |
+| Primary action | White fill with black text, as in the reference's actual Primary component example |
+| Status | Success #50E3C2; warning #F5A623; error #FF4444; icon plus text/badge |
+| Type | Geist Sans; Geist Mono for addresses, signatures, durations, and amounts; tabular numerals |
+| Reference scale | Body 0.875rem (14px at 16px root); small 0.8125rem; h1 2rem; h2 1.375rem |
+| Reference geometry | 6px buttons/inputs; 8px cards; spacing scale 4, 8, 12, 16, 24, 32, 48, 64, 96px |
+| Main container | At most 1200px, centered; 24px desktop padding; 16px narrow-screen padding |
 
-Check actual contrast after implementation; listed colors are design choices, not an accessibility certification. Distinguish the two beneficiaries by labels and amounts as well as color. Keep allocation proportions fixed to the quote; highlight only after server verification.
+### Explicit precedence for usability
+
+These are bounded application requirements, not a replacement design system. Where the copied reference conflicts with them, this section controls the Alloc implementation:
+
+- Keep the browser root at 16px; never shrink the root or scale the whole interface to fit.
+- Use 16px text for upload guidance, payment review, primary form inputs, and result explanation. Keep critical amounts and signing actions at least 16px; secondary receipt metadata at least 14px.
+- The reference's approximately 36px compact controls are desktop defaults. Make primary upload/connect/pay actions at least 44px high and provide at least 44px hit areas for touch controls, including copy/remove buttons. Visible icons can remain compact inside those hit areas.
+- Keep visible form labels, keyboard focus, sufficient actual contrast, and selectable/wrapping addresses. Copy controls must be reachable on keyboard and touch, not revealed only on hover.
+- Use black text on white primary buttons; the source's final “white-on-black” wording is ambiguous, so follow its explicit component code.
+- Source sidebar, deployment rows, and marketing hero examples are optional patterns, not instructions to add product scope. Alloc remains one route with top navigation and no sidebar.
+- Check focus/error/link contrast in the implemented UI. If a source token fails a necessary contrast check, use a documented accessible foreground/border from the existing neutral palette rather than assuming the reference is certified.
+
+Use a two-column workbench only when both panels remain readable; stack below 768px. Give grid/flex children min-width: 0, prevent page-level horizontal overflow, and wrap long payment identifiers. Test 360px, 768px, and 1440px widths and 200% browser zoom. No fixed card heights that clip results or error text.
+
+### Motion and responsiveness
+
+Follow the reference's 150ms hover and 200ms panel transitions; honor reduced motion. No artificial delay, long intro, full-page animation dependency, or simulated percentage progress. Render validation/loading feedback immediately while real wallet/RPC/model operations continue. Lazy-load wallet-only code where appropriate; do not load the coss monorepo or unused component registries into Alloc.
+
+Measure actual interaction responsiveness during implementation; copying a design document is not a runtime performance test. Distinguish the two beneficiaries by labels and amounts as well as color. Keep allocation proportions fixed to the quote and mark settlement complete only after server verification.
 
 ## Interaction/state table
 

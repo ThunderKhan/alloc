@@ -32,7 +32,7 @@ Classification is not detection or counting. Scores are model outputs, not calib
 | Layer | Selection | Purpose / constraint |
 | --- | --- | --- |
 | Runtime/web | Node 24 LTS, Next.js App Router, React, TypeScript | One Node server with route handlers; no Edge runtime for DB |
-| UI | Tailwind CSS, small local components | One page, one theme; avoid a dashboard framework |
+| UI | Tailwind CSS + selected shadcn/ui source components; Wallet UI for compatible wallet controls | Follow [design.md](design.md) and [UI_UX](UI_UX.md); one page, one theme; no dashboard framework |
 | Solana | @solana/kit, @solana/react, compatible Kit wallet plugins, @solana-program/system and memo | Follow current official frontend recipe; pin interoperable versions at M0 |
 | Validation | Zod for TS schemas; Pydantic in worker | Reject unrecognized or oversized fields |
 | Persistence | better-sqlite3 | Single gateway instance, WAL, persistent local disk |
