@@ -28,7 +28,7 @@ describe("durable ledger", () => {
   });
   it("denies signature reuse across requests", () => {
     const other = randomUUID();
-    database.prepare(`INSERT INTO requests SELECT ?,capability_hash,payer,input_sha256,upload_path,model_id,weights_id,created_at,expires_at,created_slot,state,creator,provider FROM requests WHERE id=?`).run(other,id);
+    database.prepare(`INSERT INTO requests(id,capability_hash,payer,input_sha256,upload_path,model_id,weights_id,created_at,expires_at,created_slot,state,creator,provider) SELECT ?,capability_hash,payer,input_sha256,upload_path,model_id,weights_id,created_at,expires_at,created_slot,state,creator,provider FROM requests WHERE id=?`).run(other,id);
     expect(() => database.prepare(`INSERT INTO payment_attempts(id,request_id,unsigned_base64,message_sha256,blockhash,last_valid_block_height,prepared_at,state,signature)
       VALUES(?,?,?,?,?,?,?,'SUBMITTED',?)`).run(randomUUID(),other,"abc","xx","block",42,now,"signature-that-is-unique")).toThrow();
   });
