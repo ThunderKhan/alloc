@@ -8,8 +8,8 @@ import { ApiError } from "./errors";
 import type { AttemptRow, RequestRow } from "./db";
 
 const SYSTEM_PROGRAM = "11111111111111111111111111111111";
-// This is the pinned @solana-program/memo v0.16 default program ID (legacy memo).
-const MEMO_PROGRAM = "Memo4c2pN8afCj432Lb7RMVKi9PbQnnW7ewFFaV3oAH";
+// Contractually pinned legacy SPL Memo v2 program. Do not confuse with Memo v4.
+const MEMO_PROGRAM = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 const BASE58 = getBase58Decoder();
 function mismatch(message: string): never {
   throw new ApiError(422, "PAYMENT_MISMATCH", message);

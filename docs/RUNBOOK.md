@@ -112,3 +112,8 @@ MLH event header reports **Nov 8 at 1:00 PM EST**, but its detailed schedule lis
 Review current pull request and latest branch CI; reproduce Docker build/health with persistent storage; investigate remaining dev-only dependency advisories, then obtain operator-funded Devnet wallet approval for a genuine payment. The public RPC faucet produced HTTP 410, not a signature. When funded, run the live smoke and browser-wallet test, recheck exact message binding and receipt, then deploy with a persistent volume. Fix browser states and pending/paid failure edges, run restart/concurrency tests, and deploy with persistent volumes. Record real UTC timestamp, commit, commands and conclusion, only real signature and Explorer link, real measured CPU time, and user-provided public demo URL.
 
 Do not claim all MVP gates pass solely because the source exists.
+
+
+### Memo-program version compatibility (7 November 2026)
+
+The generated `@solana-program/memo@0.16.0` instruction defaults to Memo v4 (`Memo4c2p...`), unlike the committed legacy payment contract (`MemoSq4...`). The implementation explicitly constructs a Kit instruction with the original Memo v2 address and UTF-8 request memo; the independent legacy parser enforces that same program. This is an exact contract fix, not a payment/split change. Verify GitHub CI for the resulting commit before marking its tests green. No real Devnet payment is claimed from this correction.

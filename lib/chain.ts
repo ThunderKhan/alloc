@@ -1,12 +1,11 @@
 import {
   address, appendTransactionMessageInstructions, compileTransaction,
   createNoopSigner, createSolanaRpc, createTransactionMessage,
-  getBase58Decoder, getBase58Encoder, getTransactionEncoder, lamports,
+  getBase58Decoder, getBase58Encoder, getTransactionEncoder, getUtf8Encoder, lamports,
   pipe, setTransactionMessageFeePayer, setTransactionMessageLifetimeUsingBlockhash,
   signature as kitSignature,
 } from "@solana/kit";
 import { getTransferSolInstruction } from "@solana-program/system";
-import { getAddMemoInstruction } from "@solana-program/memo";
 import { createPublicKey, createHash, timingSafeEqual, verify as verifyEd25519 } from "node:crypto";
 import { ApiError } from "./errors";
 import { validateExactLegacyMessage } from "./verify-message";
@@ -57,7 +56,13 @@ export function makeUnsigned(row: RequestRow, blockhash: string, lastValidBlockH
     getTransferSolInstruction({
       source: signedSource, destination: address(row.provider), amount: lamports(BigInt(row.provider_lamports)),
     }),
-    getAddMemoInstruction({ memo: memoFor(row.id) }),
+    // The pinned generated @solana-program/memo client now defaults to Memo v4
+    // (Memo4c2...), but the immutable Alloc contract specifies Memo v2.
+    // Memo v2 accepts exactly these UTF-8 bytes and no extra signer accounts.
+    {
+      programAddress: address("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"),
+      data: getUtf8Encoder().encode(memoFor(row.id)),
+    },
   ];
   const message = pipe(
     createTransactionMessage({ version: "legacy" }),

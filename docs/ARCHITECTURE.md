@@ -40,6 +40,9 @@ Readiness validation is free and performs no model forward pass. Quote persists 
 
 ## Payment transaction contract
 
+**Memo SDK compatibility note (7 November 2026):** The pinned `@solana-program/memo@0.16.0` generated builder defaults to `Memo4c2pN8afCj432Lb7RMVKi9PbQnnW7ewFFaV3oAH` (Memo v4), while Alloc's specified payment format deliberately requires the legacy `MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr` (Memo v2). The gateway therefore constructs this one v2 instruction directly with Kit's `programAddress` plus the exact UTF-8 memo bytes, and the independent byte parser enforces the legacy ID. This preserves the original contract without switching SDK families. Current unit/build evidence must confirm this branch change before calling it tested.
+
+
 A legacy transaction with the payer as sole signer and fee payer:
 1. System Program native SOL transfer: payer → creator, 7,000,000 lamports.
 2. System Program native SOL transfer: payer → provider, 3,000,000 lamports.
