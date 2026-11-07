@@ -1,0 +1,24 @@
+## Optional production overlay. Use only on a host with persistent Docker volumes,
+## a DNS A/AAAA record, reachable TCP 80/443, and sufficient model CPU/RAM.
+services:
+  gateway:
+    environment:
+      APP_ORIGIN: "https://${PUBLIC_DOMAIN:?Set PUBLIC_DOMAIN in .env}"
+  https:
+    image: caddy:2.11.9-alpine
+    environment:
+      PUBLIC_DOMAIN: "${PUBLIC_DOMAIN:?Set PUBLIC_DOMAIN in .env}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      gateway:
+        condition: service_started
+    restart: unless-stopped
+volumes:
+  caddy-data:
+  caddy-config:

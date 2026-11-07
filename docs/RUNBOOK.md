@@ -1,65 +1,158 @@
-# Alloc — setup, operations, and handoff
+# Alloc — operations, recovery, and current implementation handoff
 
-**Planned procedure.** Deployment URL, selected host, installed versions, commands, and test results remain unverified until implementation fills the release record below.
+Last updated: **2026-11-07 UTC** · branch: `feat/paid-inference-mvp-20261107`.
+**Milestone: M0–M4 implemented source; CI green for model, gateway, persistence and browser fixtures. Live paid Devnet acceptance and public deployment remain blocked/unverified.**
 
-## M0 prerequisites
+This file separates implemented source, tests actually passed, and externally blocked acceptance. Do not label working-looking code as a proven payment.
 
-Choose an existing Docker-capable host with persistent local volume and HTTPS, rather than assuming serverless filesystem persistence. No paid resource provisioning is authorized by this plan. If public hosting is unavailable, record that immediately and keep a reproducible local demo plus authentic recording; do not claim a public deployment.
+## Source and progress
 
-Install pinned Node 24/Python 3.11 environments or use Docker. Record compatible Solana Kit/React program-client versions, matched torch/torchvision CPU versions, and lockfiles. Use a wallet that supports signing the prepared legacy transaction without mutation; prove this before building around it.
+- Baseline main `fa59287`: specifications and reference design only; no source application.
+- `b9308cd`: private FastAPI worker for real MobileNetV3 Small, pinned ImageNet weights, input validation and tests.
+- `16e24ec`: Node/TS package pins, SQLite WAL schema, capability hashes, payment uniqueness, restart-safe interrupted-job state.
+- `0bf8277`: exact prepared legacy transfer/transfer/memo, Ed25519 signature checking, independent confirmed Devnet RPC evidence and one durable claim, CPU job dispatch.
+- `10b7f15`: authenticated quote/payment/status API and worker-readiness admission.
+- `1c5f023`: one responsive upload/wallet/payment/result/receipt workbench, matching copied monochrome Geist reference.
+- `2d671c0`: fix multipart field counting and duplicate-field checks.
+- `0dea079`: payment and database unit tests, Docker, CI, README and operational commands.
+- `c5237aa` + Actions bot: resolved and committed reproducible `package-lock.json`.
+- `e0c9ff3`–`443c762`: Kit API compatibility, stored immutable price/split, startup recovery, ten-process claim race, bounded upload streams, browser failure/recovery tests and patched dependencies.
+- `cc4baea`: opt-in real Devnet smoke using temporary in-memory test wallets (no private keys stored). This run was **blocked at faucet funding**, not a successful payment.
+- `2dec09b`: pinned-model file full SHA-256 check; model load fails before accepting payments if cache is missing/tampered.
+- `91d4e2c`–`fa94f96`: wallet partial-signing of exact Kit transaction and lifetime reconstruction, fixed quote recovery.
+- `8b1ae1c`: restart-safe rebroadcast of the *same* signed candidate after a crash before network submission; never authorize a second signature.
+- `1d784a9`: independent Docker Compose deployment smoke CI and complete npm audit reporting.
+- `8b4ad51`–`66dded4`: independent legacy-wire instruction decoder verifying exact payer/beneficiaries/amounts/memo, contract-preserving explicit Memo v2 builder; explicit Memo v2 builder and parser passed CI run 42325661127.
+- `390c080`: upgrade test-only Vitest to patched v4; subsequent npm audit reports zero advisories.
 
-Create three distinct Devnet wallets. Back up seeds privately; only public addresses enter configuration. Fund payer with price plus several transaction fees and pre-fund both beneficiaries. Confirm balances and endpoint cluster. Do not depend on a faucet during recording.
+**Implemented (source present, not execution proof)**: private /validate and /infer, immutable upload/quote, server-bound signed payment candidate, single-signer check, two-recipient/memo prepared bytes, signature collision tombstones, post-RPC verification and unique claim, conditional worker dispatch, stored result/receipt, paid-failure and refresh UI, Docker Compose /data persistence.
 
-## Configuration contract
+**Not yet verified**: actual browser wallet signing, genuine Devnet split, cross-restart live chain claim, Docker deployment on persistent host, and three fresh paid model outputs. GitHub Actions **42325487964** (commit 3aa8479) passed Node 24 installation, TypeScript, **15 Vitest gateway tests** (including cross-process SQLite claims and exact legacy-wire parsing), Next 16.4.5 production build, **5 Chromium UI fixture tests**, **6 worker security tests** and **1 genuine CPU pretrained-model test**. Logs: https://github.com/ThunderKhan/alloc/actions/runs/42325487964 . The explicit Memo v2 builder+strict parser commit **66dded4** also passed complete CI in https://github.com/ThunderKhan/alloc/actions/runs/42325661127 . These checks do NOT prove a funded Solana transaction or human wallet approval.
 
-| Variable | Where | Meaning |
-| --- | --- | --- |
-| APP_ORIGIN | Gateway/proxy | Exact HTTPS app origin |
-| SOLANA_CLUSTER | Server + public UI | Must be devnet; reject other value |
-| SOLANA_RPC_URL | Server only | Devnet endpoint; private provider token stays server-side |
-| SOLANA_RPC_FALLBACK_URL | Server only, optional | Verified Devnet fallback, same verification policy |
-| CREATOR_PUBLIC_KEY | Server; public in quote | Model demonstration beneficiary |
-| PROVIDER_PUBLIC_KEY | Server; public in quote | Compute demonstration beneficiary |
-| PRICE_LAMPORTS | Server | 10000000; fixed for release |
-| CREATOR_BPS | Server | 7000; provider receives remainder |
-| DATABASE_PATH | Gateway | Persistent /data/alloc.sqlite |
-| UPLOAD_DIR | Gateway | Persistent private /data/uploads |
-| WORKER_URL | Gateway | Private service DNS, e.g. http://worker:8000 |
-| WORKER_TOKEN | Gateway + worker only | Random internal auth secret |
-| TORCH_HOME | Worker | Persistent/prebuilt approved weight cache |
+## Environment and dependencies
 
-No payer/beneficiary private-key environment variable is needed. Browser gets public model/quote data from the gateway and signs through its wallet. Gateway broadcasts the signed transaction; private RPC URL need not appear client-side.
+- Gateway selected: Node **24 LTS**, Next **16.4.5**, React **19.3.0**, `@solana/kit` **8.5.0**, `@solana/react` **8.5.0**, `@solana/kit-plugin-wallet` **0.21.0**, `@solana/kit-plugin-rpc` **0.19.0**, `better-sqlite3` **12.4.1**. Exact package pins are in `package.json`; resolved `package-lock.json` is committed and validated with `npm ci` on CI.
+- Private worker selected: Python **3.11**, CPU `torch==2.10.0` + `torchvision==0.25.0` and `worker/requirements.txt`. `MobileNet_V3_Small_Weights.IMAGENET1K_V1`, built-in torchvision preprocessing and class metadata, `eval()`, `inference_mode()`. The Docker worker downloads the official weights *at build time*, never after payment.
+- Actual execution environment for code authoring has Node 22.16.0 and Python 3.13.5, **not** chosen deployment versions. We used the connected GitHub API to commit source; no local Node install/build was executed. The Python environment has torch 2.10.0+cpu and torchvision 0.25.0+cpu but these are not evidence that the checked-in worker was run.
+- Model source: https://pytorch.org/vision/stable/models/generated/torchvision.models.mobilenet_v3_small.html . The pinned `IMAGENET1K_V1` weights are from upstream PyTorch, not produced/trained by Alloc. Torchvision code is BSD-3-Clause. Downloaded model file SHA-256 on GitHub Actions: **047dcff4addef86ea5bc2eff13c9614dc11f47ab1160d0a71a25e7db994f4e1f** (run 42324361698). Docker refuses to load a missing or hash-mismatched cache; separate upstream ImageNet dataset usage/license suitability for non-demo production remains to be reviewed.
+- Repo's `docs/design.md` is preserved verbatim; `docs/DESIGN_LICENSE.txt` contains Dima Braven's MIT attribution. Only selected local-style components; no second component framework/dashboard.
+- AI development disclosure: ChatGPT (GPT-6) was used to author planning documentation, source, tests and implementation guidance; source should be reviewed and tested by maintainers.
 
-## Build and startup contract
+## Reproduction commands (core CI passed; Docker deployment still unverified)
 
-Implement `docker compose up --build` as the intended one-step entry point after .env setup; it does not exist yet. Services: gateway on public app port, worker private, HTTPS proxy for deployment. Mount gateway /data and worker model cache. Run DB migrations before readiness; recover pending candidates and never-started paid jobs. RUNNING jobs interrupted by restart become PAID_FAILED.
+```bash
+git clone https://github.com/ThunderKhan/alloc.git
+cd alloc
+git switch feat/paid-inference-mvp-20261107
+cp .env.example .env
+# Fill CREATOR_PUBLIC_KEY, PROVIDER_PUBLIC_KEY with two distinct DEVNET PUBLIC addresses.
+# Set WORKER_TOKEN to a local random secret: openssl rand -hex 32
+# No seed phrase, secret key, or test-keypair file belongs in the repo or prompts.
+npm ci
+npm run typecheck
+npm test
+npm run build
+docker compose up --build
+curl -i http://localhost:3000/api/v1/health
+```
 
-Download approved weights at build/setup, record SHA-256 and review usage terms. Startup loads explicit IMAGENET1K_V1, warms model, and reports readiness only after validation. Do not download a model after collecting a payment. Keep one gateway replica and one dispatcher.
+Worker isolation tests:
+```bash
+python3.11 -m pip install torch==2.10.0 torchvision==0.25.0 --index-url https://download.pytorch.org/whl/cpu
+python3.11 -m pip install -r worker/requirements.txt pytest httpx
+PYTHONPATH=worker python3.11 -m pytest worker/test_app.py -q -m 'not live_model'
+ALLOC_REAL_MODEL_TEST=1 PYTHONPATH=worker python3.11 -m pytest worker/test_app.py -q -m live_model
+```
 
-During implementation add exact commands for locked install, local development, migration, typecheck, unit/integration tests, worker tests, build, and smoke demo to root README. Verify from a clean checkout before marking them runnable.
+The gateway is bound to **localhost port 3000** by `compose.yaml`; the worker port is not published. **Docker Compose deployment smoke passed** on GitHub Actions https://github.com/ThunderKhan/alloc/actions/runs/42325153752 : actual Docker build of both services, readiness, fixed model/price/recipient checks, protected request route, and persisted `/data` marker across gateway restart. This is not a publicly deployed URL and does not prove wallet signing. For external public demo, configure a separately managed HTTPS reverse proxy with explicit upload size cap and persistent storage, then verify full flow through that public origin. No hosting purchased or provisioned yet; public app URL **unknown**. Public Devnet RPC `requestAirdrop` returned HTTP 410 in live smoke run https://github.com/ThunderKhan/alloc/actions/runs/42324588291 (2026-11-07 UTC). The smoke test exited at its faucet step **before creating a quote or broadcasting any payment**. It is not real settlement evidence. User-controlled Devnet wallet funding or permitted faucet action is needed. Avoid embedding private key material or automated wallet keys in persisted GitHub logs.
 
-## Health and failure operations
+## Configuration / wallet boundary
 
-Before each demo: disk writable, SQLite integrity, model loaded, worker token valid, RPC responsive, queue clear, browser wallet on Devnet, payer balance adequate. Run a real low-volume request earlier, not repeatedly while recording.
+Copy `.env.example` and set:
+- `SOLANA_CLUSTER=devnet`, `SOLANA_RPC_URL=https://api.devnet.solana.com` (or another independently verified Devnet endpoint), optional Devnet fallback.
+- `CREATOR_PUBLIC_KEY`, `PROVIDER_PUBLIC_KEY` — public keys only, distinct from each other and payer.
+- `WORKER_TOKEN` — private random bearer shared only by gateway and private worker.
+- `DATABASE_PATH=/data/alloc.sqlite`, `UPLOAD_DIR=/data/uploads` for Compose gateway, `WORKER_URL=http://worker:8000`, `APP_ORIGIN`.
 
-If transaction status is unknown: poll same signature with bounded backoff, optionally verify using configured fallback. Do not create another candidate until definitive reconciliation. Once a transaction lands, continue reconciliation even if browser closes or quote wall-clock expires.
+**Operator action pending**: prepare **three distinct browser/team-controlled Devnet wallets** (payer, creator, provider); only public beneficiary addresses are entered in configuration. Payer wallet must be able to sign (not automatically send) the prepared one-signer legacy transaction; fund via an available authorized Devnet faucet with at least 0.01 test SOL plus network-fee reserve (the public RPC airdrop may be unavailable: HTTP 410 observed). Do not send private keys or seed phrases to ChatGPT.
 
-If worker fails after payment: keep receipt, mark paid failure, and do not automatically invoke /infer again. If DB is unwritable: disable preparation, preserve disk and known signatures, then reconcile after repair. If restoring a backup: reconcile chain payments since backup before reopening; otherwise used-payment records may be missing.
+## Trust boundaries and recovery
 
-Back up SQLite with its backup API (or stop service and copy DB consistently), not a bare hot copy that ignores WAL. Store backups privately. Never clear used signatures for a cosmetic demo reset. Purge images independently of payment tombstones.
+1. Gateway hashes the uploaded image and capability before saving the quote. Quote pricing is fixed: 10,000,000 lamports, split 7,000,000 + 3,000,000. UUID request memo is public.
+2. Gateway prepares exactly three ordered instructions in a **legacy transaction** and stores immutable unsigned bytes and recent blockhash. Browser wallet signs this message, never sending its secret to the app.
+3. Gateway checks signed message byte equality, payer Ed25519 signature, single signer and size, stores signature + signed candidate in SQLite **before** network broadcast.
+4. A server-selected **Devnet** RPC must show successful transaction, matching exact signed bytes, slot and quote time, then gateway atomically claims payment via UNIQUE keys. RPC null/unavailable means **PENDING**, not failed; only definitive observed errors may advance failure.
+5. Dispatcher transitions PAID→RUNNING transactionally and runs the fixed private worker only after verified claim. Result is persisted with public receipt. On interrupted RUNNING, startup marks PAID_FAILED; do not automatically repeat uncertain computation. Preserved payments remain visible in failed cases.
+6. SQLite remains a **single-gateway-replica** requirement; never scale out to independent local SQLite disks. Back up with SQLite backup API; don't hot-copy only the DB file without WAL. Never wipe ledger signatures to reset a demo.
+7. No guarantee of exactly-once compute or refund, no on-chain computation proof, no mainnet, no production-money use. Signed payment confirmation is a Devnet prototype guarantee, not inference delivery guarantee.
 
-## Agent handoff and release record
+If Devnet RPC fails, check the **same** candidate signature on an independently configured Devnet endpoint; never prepare a new payment until the outcome is reconciled. A chain write may succeed after the send request times out. If worker fails after payment, preserve receipt and show paid failure.
 
-At each meaningful milestone update:
-- current milestone, actual commit, UTC timestamp, and next acceptance criterion;
-- selected host/public URL, exact runtime/package versions, model checksum and terms;
-- actual setup/test commands and results, with sanitized evidence paths;
-- public Devnet request/signature evidence and measured latency with hardware;
-- known incomplete gates and recovery issues;
-- presenter, submission owner, initial/final submission saved status.
+## Test evidence / acceptance
 
-Initial record: documentation only; implementation absent; host/versions/model terms/tests/submission status unverified. The next task is M0, not a marketplace scaffold.
+| Check | Status as of this handoff |
+| --- | --- |
+| Code files and documented architecture | Implemented in feature branch |
+| Unit payment parsing/signature hostility tests (`tests/chain.test.ts`) | **PASS** on GitHub Actions run 42325487964 |
+| SQLite UNIQUE claims/capability/restart read (`tests/db.test.ts`) | **PASS** in CI 42325487964; 10 competing separate Node processes claim exactly once |
+| Worker auth/validation/forged-input rejection tests | **6 passed** in CI 42325487964 |
+| Fresh real PyTorch CPU inference on two images | **PASS** on GitHub Actions: opt-in test classified two fresh images with genuine CPU forward passes |
+| Node 24/npm resolution, exact lockfile, TS/Next build | **PASS** on GitHub Actions run 42324361698 |
+| Browser widths 360/768/1440, including unpaid-quote cancellation and protected pending/paid-failure states | **6 fixture tests passed in Chromium**; run 42325896223. Human wallet signing/accessibility manual review pending |
+| Actual Devnet signature and Explorer recipients | **Not performed**; automated live attempt failed at Devnet faucet HTTP 410 before payment; needs funded wallets and payer approval |
+| Three fresh paid end-to-end runs | Not performed |
+| Docker Compose readiness and SQLite volume restart | **PASS** in isolated CI smoke run 42325153752; public HTTPS host and two human rehearsals not yet performed |
+| Short public video, screenshots, submitted entry | Not performed |
 
-## Repository hygiene
+CI found vulnerabilities in the original Next 16.3.8/Zod 4.1.12 pins; updated to patched Next 16.4.5 and Zod 4.6.7. Latest npm audit produced **zero advisories for both runtime and development dependencies** following Vitest 4.1.12 upgrade (GitHub Actions 42325487964).
 
-Commit code, source docs, lockfiles, and sanitized fixtures. Ignore .env, wallet keypairs, database/WAL files, upload directories, private logs, and cached model binaries unless redistribution is explicitly reviewed. Add upstream notices and AI-tool disclosure. Do not choose or assert a project license on behalf of the team without recording the decision.
+The main release gate remains **one authentic paid Devnet inference tied to its matching Explorer receipt**. A mock payment or prefilled prediction cannot satisfy it.
+
+## Schedule and external deadline
+
+MLH event header reports **Nov 8 at 1:00 PM EST**, but its detailed schedule lists an **earlier final deadline at 11:45 AM EST**. Keep earliest **Nov 8 22:15 IST** hard cutoff and earlier internal final target **21:30 IST**, with internal initial target **19:30 IST**. Check the live submission form before entering; do not submit without explicit user authorization. Presenter and submission owner are **not assigned**.
+
+## Next engineer's sequence
+
+Review draft PR #1 and current branch CI; the Docker Compose isolated persistence probe and zero-advisory audit passed. Next obtain operator-funded Devnet wallet approval for a genuine payment. The public RPC faucet produced HTTP 410, not a signature. When funded, run the live smoke and browser-wallet test, recheck exact message binding and receipt, then deploy with a persistent volume. Fix browser states and pending/paid failure edges, run restart/concurrency tests, and deploy with persistent volumes. Record real UTC timestamp, commit, commands and conclusion, only real signature and Explorer link, real measured CPU time, and user-provided public demo URL.
+
+Do not claim all MVP gates pass solely because the source exists.
+
+
+### Memo-program version compatibility (7 November 2026)
+
+The generated `@solana-program/memo@0.16.0` instruction defaults to Memo v4 (`Memo4c2p...`), unlike the committed legacy payment contract (`MemoSq4...`). The implementation explicitly constructs a Kit instruction with the original Memo v2 address and UTF-8 request memo; the independent legacy parser enforces that same program. This is an exact contract fix, not a payment/split change. **PASS:** Node gateway, browser, and worker CI run 42325616518 validated the exact Memo v2 payment instruction/parser after correction. No real Devnet payment is claimed from this correction.
+
+
+### Reconciliation without an open browser
+
+The sole Node gateway now rechecks up to three persisted `SUBMITTED` signatures per 12-second server sweep. It never constructs another transaction or approves a payment on behalf of a wallet. RPC errors and unknown transactions remain `PAYMENT_PENDING`; successfully confirmed candidates advance through the same SQLite claim and job dispatcher even when the browser has closed. Startup additionally handles the exact-same-signed-transaction crash window. This is best-effort reconciliation on one running gateway process, not a delivery/exactly-once guarantee. **PASS:** gateway/browser/worker CI run 42325960945; the follow-up dedicated bounded-sweep/overlap regression tests also passed in run 42326088446.
+
+
+## Latest verified branch acceptance (2026-11-07 UTC)
+
+- Last tested source commit: `b79f006fdcb7a9dbd65659f45bda3e474381f11e`, pushed to `feat/paid-inference-mvp-20261107`; review PR: https://github.com/ThunderKhan/alloc/pull/1 (draft, not merged).
+- CI https://github.com/ThunderKhan/alloc/actions/runs/42326088446: **success** on all gateway, worker, browser jobs. Includes strict legacy Memo v2 parsing, ten-process SQLite uniqueness race, actual CPU PyTorch model smoke, browser fixtures and the two bounded background reconciliation tests.
+- Docker Compose persistent volume readiness CI https://github.com/ThunderKhan/alloc/actions/runs/42325153752: **success**. This demonstrates container bootstrap and restart persistence on a hosted CI runner, not a public HTTPS deployment.
+- Real Devnet payment proof: **none**. A separate live test attempted public RPC faucet funding but received HTTP 410; do not claim a transaction signature or output paid by a Devnet transfer.
+- Next operator action: configure two distinct beneficiary **public addresses** and a third browser payer wallet on Devnet. Fund payer with free test SOL (at least 0.01 SOL plus fees), for example via official https://faucet.solana.com/ (currently 2 requests per 8h), not mainnet. Keep all three wallet secret keys privately in their respective wallet apps, never in .env, source, logs or this chat. Start the persistent Compose deployment and approve one prepared signed transaction with the payer wallet; collect a genuine Explorer receipt and corresponding real worker result. A working public HTTPS host/domain is still needed for the submission link.
+- Hard internal final submission target: **2026-11-08 21:30 IST**; official event schedule lists **22:15 IST**, earlier than its event-header 1:00 PM EST ending. No submission was made.
+
+## November 7 continuation — fair sweeps, reproducible CI and HTTPS host candidate
+
+- Commit [`f946da4`](https://github.com/ThunderKhan/alloc/commit/f946da48a391a9baeb4698bd1ad1ed0cdb641d81) implemented indexed circular keyset sweeps of up to **three** `SUBMITTED` candidates. This fixes starvation caused by always selecting three oldest signatures. Single in-process overlap guard remains; transient RPC failures advance the scan cursor but never claim or rebroadcast an unverified transaction. Tests cover four permanently pending candidates, repeated RPC errors, bounded one-at-a-time iteration, and overlapping calls. The scan cursor is in-process; restart performs its existing signed-candidate recovery. **Verified:** GitHub Actions [42327521095](https://github.com/ThunderKhan/alloc/actions/runs/42327521095) passed gateway, browser and worker jobs.
+- The same commit removed automatic `npm install --package-lock-only` regeneration and CI self-commits. `npm ci` runs directly against the existing checked-in lockfile, and an explicit clean-lock assertion passes. This is verified in the two Node jobs in run 42327521095, not claimed from an unperformed local install.
+- Commit [`45d1025`](https://github.com/ThunderKhan/alloc/commit/45d102529a6fbe7a44e125b7b54faeb34d1f4098) added optional single-gateway persistent-volume HTTPS Docker Compose overlay, Caddy TLS, body limit, private worker network, public readiness probe and [deployment instructions](DEPLOYMENT.md). This is **deployable configuration, not a publicly hosted deployment**. CI gateway/browser/worker run [42327788242](https://github.com/ThunderKhan/alloc/actions/runs/42327788242) succeeded; the separate Caddy configuration validation passed within [Docker smoke 42327783234](https://github.com/ThunderKhan/alloc/actions/runs/42327783234). The latter's full Docker build/readiness/restart outcome needs its final run conclusion checked independently.
+- Connected Vercel access was inspected: no Alloc project was found. A standard serverless deployment would not satisfy the long-running private worker, reliable local SQLite ledger and single-host persistent storage requirement; nothing was deployed there.
+- A follow-up public reverse-proxy Origin check and unit tests were authored to validate the explicit `APP_ORIGIN`. The corresponding commit and fresh CI result must be checked before claiming this later gate passed.
+- **Still no genuine browser wallet approval, funded Devnet signature, matching Explorer receipt, public origin running on an authorized host, three fresh paid inference runs, screenshot, video, or submission.** Do not infer any of these from a successful fixture test or Caddy configuration validation.
+
+## Final continuation evidence checkpoint (2026-11-07 UTC)
+
+- The verified code state through commit [`6ae5f69`](https://github.com/ThunderKhan/alloc/commit/6ae5f699997eda3a248db2224a24f453b7a7b750) has **successful complete CI**, including gateway, browser and worker jobs: [run 42328264007](https://github.com/ThunderKhan/alloc/actions/runs/42328264007) and [run 42328269228](https://github.com/ThunderKhan/alloc/actions/runs/42328269228). The earlier experimental paid-job test commit `a94a1d1` failed CI **because the test closed its SQLite fixture while the asynchronous pump was still finishing**; commit `6ae5f69` fixed that test teardown and the rerun passed. This is not evidence of a production scheduler failure.
+- Real gateway tests now include bounded fair pending checks, immutable legacy-wire verifier, signed candidate uniqueness, ten-process claim race, strict lockfile install, reverse-proxy Origin rejection/acceptance, **fixture-based paid worker failure retaining its receipt, cached successful result with no redispatch, and reopened-connection SQLite durability**. The worker within the paid-job tests is intentionally mocked; genuine CPU PyTorch inference is independently verified in the live-model worker CI job. Distinguish these two types of evidence.
+- [Docker smoke 42327783234](https://github.com/ThunderKhan/alloc/actions/runs/42327783234) **success**: Caddyfile parse validation, private model/gateway readiness from Compose, Devnet health check, and retained /data marker after restarting the gateway. This **does not** establish public HTTPS hosting or a live paid request.
+- Verified from the committed lock: Node 24 CI ran `npm ci` directly and asserted no lockfile diff; it did **not** run `npm install --package-lock-only` first. Local terminal clone/`npm ci` was unavailable in this execution environment because GitHub and npm registry DNS resolution failed. Therefore the checked-in lock is verified by Actions, not by a claimed local checkout.
+- [`docs/DEPLOYMENT.md`](DEPLOYMENT.md) and [`docs/SUBMISSION_DRAFT.md`](SUBMISSION_DRAFT.md) are ready for a host/operator and truthful release details. No paid hosting was bought or provisioned; the connected Vercel account did not contain Alloc and its serverless model is unsuitable for the current single-process SQLite/CPU worker design.
+- **Outstanding:** operator creates/configures three distinct Devnet public wallet addresses, funds the third (payer) with at least **0.03 test SOL plus fees** for three fresh requests, and approves a genuine transaction in the browser. A user-controlled Docker host with a real DNS hostname and HTTPS reachability is required for a public origin. Do not expose payer secrets, recovery phrases, `WORKER_TOKEN`, or request bearer capabilities. Capture actual signature, Explorer receipt, request ID, inferenceMs and results from the same run, then do two more fresh runs on at least two images. The prior public RPC faucet HTTP 410 is **not** a completed payment; avoid repeated automatic retries.
+- **No real Devnet split, wallet-approved inference, publicly deployed URL, three paid-run evidence, screenshots, video, merge or hackathon submission was demonstrated by this checkpoint.**
