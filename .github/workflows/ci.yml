@@ -57,6 +57,8 @@ jobs:
           PYTHONPATH: worker
           ALLOC_REAL_MODEL_TEST: '1'
         run: python -m pytest worker/test_app.py -q -m live_model
+      - name: Record downloaded upstream model checkpoint SHA-256
+        run: sha256sum "$HOME/.cache/torch/hub/checkpoints/mobilenet_v3_small-047dcff4.pth"
 
   browser:
     runs-on: ubuntu-latest

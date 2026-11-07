@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { randomBytes, randomUUID, createHash } from "node:crypto";
+import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -55,4 +56,37 @@ describe("durable ledger", () => {
       expect(() => other.prepare("INSERT INTO fulfillments(request_id,attempt_id,execution_id,state) VALUES(?,?,?,?)").run(id,attempt,"new","PAID")).toThrow();
     } finally { other.close(); }
   });
+});
+
+describe("inter-process payment claim races", () => {
+  it("allows only one of ten independent Node processes to claim one payment", async () => {
+    const raceId = randomUUID(), raceAttempt = randomUUID();
+    database.prepare(`INSERT INTO requests(id,capability_hash,payer,input_sha256,upload_path,model_id,weights_id,created_at,expires_at,created_slot,state,creator,provider)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(raceId, createHash("sha256").update(capability).digest("hex"),
+      "PAYER", "bb".repeat(32), "/tmp/race-image", "mobilenet-v3-small", "IMAGENET1K_V1",
+      now, now+900000, 1, "PAYMENT_PENDING", "CREATOR", "PROVIDER");
+    database.prepare(`INSERT INTO payment_attempts(id,request_id,unsigned_base64,message_sha256,blockhash,last_valid_block_height,prepared_at,state,signature)
+      VALUES(?,?,?,?,?,?,?,?,?)`).run(raceAttempt,raceId,"abc","bb".repeat(32),"hash",300,now,"VERIFIED",randomUUID());
+
+    // Each process has its own SQLite connection and attempts BEGIN IMMEDIATE
+    // independently; unlike an in-process Promise.all this is a real DB lock race.
+    const code = `
+      const D=require("better-sqlite3");
+      const db=new D(process.argv[1]);
+      db.pragma("busy_timeout = 5000");
+      const tx=db.transaction(() => db.prepare(
+        "INSERT INTO fulfillments(request_id,attempt_id,execution_id,state) VALUES(?,?,?,\'PAID\')"
+      ).run(process.argv[2],process.argv[3],process.argv[4]));
+      try { tx.immediate(); process.exit(0); }
+      catch { process.exit(3); }
+    `;
+    const exits = await Promise.all(Array.from({ length: 10 }, (_, i) => new Promise<number>((resolve, reject) => {
+      const child = spawn(process.execPath, ["-e", code, process.env.DATABASE_PATH!, raceId, raceAttempt, "exec-"+i], {stdio: "ignore"});
+      child.once("error", reject);
+      child.once("close", code => resolve(code ?? -1));
+    })));
+    expect(exits.filter(code => code === 0)).toHaveLength(1);
+    expect(exits.filter(code => code === 3)).toHaveLength(9);
+    expect((database.prepare("SELECT COUNT(*) n FROM fulfillments WHERE request_id=?").get(raceId) as { n: number }).n).toBe(1);
+  }, 20_000);
 });

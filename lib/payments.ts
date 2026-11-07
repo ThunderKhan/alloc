@@ -47,7 +47,14 @@ export async function prepare(request: RequestRow) {
     db().prepare(`INSERT INTO payment_attempts
       (id,request_id,unsigned_base64,message_sha256,blockhash,last_valid_block_height,prepared_at,state)
       VALUES (@id,@request_id,@unsigned_base64,@message_sha256,@blockhash,@last_valid_block_height,@prepared_at,@state)`)
-      .run(attempt);
+      .run({
+        id: attempt.id, request_id: attempt.request_id,
+        unsigned_base64: attempt.unsigned_base64,
+        message_sha256: attempt.message_sha256,
+        blockhash: attempt.blockhash,
+        last_valid_block_height: attempt.last_valid_block_height,
+        prepared_at: attempt.prepared_at, state: attempt.state,
+      });
     audit(request.id, "PREPARED");
     return describeAttempt(attempt);
   });
@@ -137,7 +144,7 @@ export function status(id: string) {
   const state = !attempt && request.state === "QUOTED" && Date.now() > request.expires_at ? "EXPIRED" : request.state;
   return {
     requestId: id, state, receipt,
-    signature: attempt?.signature || null,
+    signature: attempt?.state === "SUBMITTED" || attempt?.state === "VERIFIED" ? attempt.signature : null,
     expiresAt: new Date(request.expires_at).toISOString(),
     result: fulfillment?.state === "SUCCEEDED" && fulfillment.result_json ? JSON.parse(fulfillment.result_json) : null,
     errorCode: fulfillment?.state === "PAID_FAILED" ? fulfillment.error_code : null,

@@ -142,6 +142,7 @@ export default function Workbench() {
   async function approve() {
     if (!quote || !session || !connected?.signer || quote.payer !== payer || working) return;
     setWorking("Awaiting wallet approval"); setError("");
+    let submittedToGateway = false;
     try {
       const response = await fetch(`/api/v1/requests/${quote.requestId}/prepare`, {
         method: "POST", headers: { Authorization: `Bearer ${session.capability}` },
@@ -157,6 +158,7 @@ export default function Workbench() {
       const signed = await signTransactionWithSigners([signer], tx as never);
       const signedBase64 = getBase64Decoder().decode(getTransactionEncoder().encode(signed));
       setWorking("Submitting signed payment");
+      submittedToGateway = true;
       const paidResponse = await fetch(`/api/v1/requests/${quote.requestId}/payments`, {
         method: "POST", headers: { Authorization: `Bearer ${session.capability}`, "Content-Type": "application/json" },
         body: JSON.stringify({ signedTransaction: signedBase64 }),
@@ -166,7 +168,18 @@ export default function Workbench() {
       setStatus(payload);
       void getStatus(session);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Wallet approval failed");
+      if (submittedToGateway) {
+        // The gateway might have persisted and broadcast after the HTTP response was lost.
+        // Never invite a second charge until the same request is reconciled.
+        setStatus(previous => previous ?? {
+          requestId: session.requestId, state: "PAYMENT_PENDING",
+          signature: null, expiresAt: session.expiresAt, result: null, receipt: null,
+        });
+        void getStatus(session);
+        setError("Payment status uncertain. Check this same request before taking any further action.");
+      } else {
+        setError(e instanceof Error ? e.message : "Wallet approval failed");
+      }
     } finally { setWorking(""); }
   }
 

@@ -7,10 +7,11 @@ let booted = false;
 export async function housekeeping() {
   const database = db();
   const expired = database.prepare(
-    "SELECT * FROM requests WHERE state IN ('QUOTED','EXPIRED') AND expires_at < ?"
+    "SELECT * FROM requests WHERE state IN ('SUCCEEDED','PAID_FAILED') OR (state IN ('QUOTED','EXPIRED') AND expires_at < ?)"
   ).all(Date.now() - 60 * 60 * 1000) as RequestRow[];
   for (const row of expired) {
     // Payment-pending candidates are NEVER purged until reconciled. Retain tombstones.
+    // Finished/failed requests may be cleaned immediately after a crash, too.
     await unlink(row.upload_path).catch(() => undefined);
     database.prepare("UPDATE requests SET state='EXPIRED' WHERE id=? AND state='QUOTED'")
       .run(row.id);

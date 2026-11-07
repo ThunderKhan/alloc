@@ -12,6 +12,32 @@ import { workerReady, validateImage } from "@/lib/worker";
 import { isAtCapacity } from "@/lib/payments";
 import { ipOf, rate } from "@/lib/rate";
 export const runtime = "nodejs";
+
+/** Bounded streaming multipart acquisition: reject chunked oversized requests too. */
+async function boundedFormData(request: Request): Promise<FormData> {
+  if (!request.body) throw new ApiError(400, "INVALID_INPUT", "Missing multipart body");
+  const reader = request.body.getReader();
+  const parts: Buffer[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > MAX_UPLOAD + 20_000) {
+        await reader.cancel();
+        throw new ApiError(413, "INPUT_TOO_LARGE", "Maximum upload body is 5 MiB");
+      }
+      parts.push(Buffer.from(value));
+    }
+  } finally { reader.releaseLock(); }
+  const copy = new Request("http://localhost/upload", {
+    method: "POST",
+    headers: {"content-type": request.headers.get("content-type") || ""},
+    body: Buffer.concat(parts),
+  });
+  return copy.formData();
+}
 export async function POST(request: Request) {
   let uploadPath: string | null = null;
   try {
@@ -24,7 +50,7 @@ export async function POST(request: Request) {
     const cfg = config();
     if (isAtCapacity()) throw new ApiError(429, "RATE_LIMITED", "Inference queue full", true);
     await workerReady(); // Do not issue payment quotes while the model is unavailable.
-    const form = await request.formData();
+    const form = await boundedFormData(request);
     if (Array.from(form.keys()).length !== 2 || form.getAll("payer").length !== 1 || form.getAll("image").length !== 1 || typeof form.get("payer") !== "string" || !(form.get("image") instanceof File)) {
       throw new ApiError(400, "INVALID_INPUT", "Exactly one image and payer are required");
     }
