@@ -1,0 +1,10 @@
+export const NETWORK = "devnet" as const;
+export const MODEL_ID = "mobilenet-v3-small";
+export const WEIGHTS_ID = "IMAGENET1K_V1";
+export const PRICE = 10_000_000;
+export const CREATOR_AMOUNT = 7_000_000;
+export const PROVIDER_AMOUNT = 3_000_000;
+export const QUOTE_MS = 15 * 60 * 1000;
+export const ACCESS_MS = 24 * 60 * 60 * 1000;
+export const MAX_UPLOAD = 5 * 1024 * 1024;
+export type RequestState = "QUOTED" | "PAYMENT_PENDING" | "PAID" | "RUNNING" | "SUCCEEDED" | "EXPIRED" | "PAID_FAILED";
