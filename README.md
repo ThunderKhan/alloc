@@ -24,6 +24,8 @@ docker compose up --build
 
 The gateway runs on `http://localhost:3000` (loopback only). The worker is accessible only inside the Docker network. To run a public demo, put an HTTPS reverse proxy with an explicit upload-size limit (at least the app's 5 MiB cap, no unbounded payloads) in front of the gateway and configure `APP_ORIGIN`. **Do not deploy the gateway on ephemeral serverless storage**: SQLite and uploads need a persistent volume and one gateway replica.
 
+For a Docker host with persistent volumes, domain/DNS and open 80/443, the optional Caddy HTTPS overlay and public safety probe are documented in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). This is a deployable configuration, **not evidence of a hosted public instance**. Avoid a plain Vercel serverless deployment: the SQLite ledger and private long-lived worker would not persist correctly.
+
 For development without Docker, start the worker with Python 3.11 and the pinned requirements, set `TORCH_HOME`, `WORKER_TOKEN` and `WORKER_URL=http://127.0.0.1:8000`, then run `npm run dev`.
 
 ## Operator requirements

@@ -1,0 +1,14 @@
+# Public origin for Alloc. PUBLIC_DOMAIN is a hostname, not a URL.
+# Keep the gateway and the pretrained-model worker on Docker's private network.
+{$PUBLIC_DOMAIN} {
+  encode zstd gzip
+  request_body {
+    max_size 6MB
+  }
+  reverse_proxy gateway:3000
+  header {
+    Strict-Transport-Security "max-age=31536000"
+    X-Content-Type-Options "nosniff"
+    Referrer-Policy "strict-origin-when-cross-origin"
+  }
+}
