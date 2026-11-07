@@ -8,7 +8,8 @@ import { ApiError } from "./errors";
 import type { AttemptRow, RequestRow } from "./db";
 
 const SYSTEM_PROGRAM = "11111111111111111111111111111111";
-const MEMO_PROGRAM = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
+// This is the pinned @solana-program/memo v0.16 default program ID (legacy memo).
+const MEMO_PROGRAM = "Memo4c2pN8afCj432Lb7RMVKi9PbQnnW7ewFFaV3oAH";
 const BASE58 = getBase58Decoder();
 function mismatch(message: string): never {
   throw new ApiError(422, "PAYMENT_MISMATCH", message);
@@ -64,7 +65,7 @@ export function validateExactLegacyMessage(
       keys[0] !== request.payer || !keys.includes(request.creator) ||
       !keys.includes(request.provider) || !keys.includes(SYSTEM_PROGRAM) ||
       !keys.includes(MEMO_PROGRAM)) {
-    mismatch("Fee payer or beneficiary/program account mismatch: keys=" + keys.join(",") + " expected=" + [request.payer,request.creator,request.provider,SYSTEM_PROGRAM,MEMO_PROGRAM].join(","));
+    mismatch("Fee payer or beneficiary/program account mismatch");
   }
   const blockhash = BASE58.decode(sliceBytes(signedWire, position, 32));
   if (blockhash !== attempt.blockhash) mismatch("Recent blockhash mismatch");
