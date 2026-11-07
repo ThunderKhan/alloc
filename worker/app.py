@@ -5,6 +5,7 @@ import hashlib
 import io
 import os
 import time
+from pathlib import Path
 import warnings
 from contextlib import asynccontextmanager
 from typing import Annotated
@@ -75,6 +76,14 @@ def decode_image(data: bytes) -> tuple[Image.Image, str]:
 
 def load_model() -> None:
     global _model
+    # Docker insists on a pre-staged, full-SHA256 verified weight file before
+    # deserialization. Missing or tampered weights fail closed before any quote.
+    if os.getenv("ALLOC_VERIFY_CACHED_WEIGHTS") == "1":
+        cache = Path(os.environ.get("TORCH_HOME", str(Path.home() / ".cache" / "torch")))
+        file = cache / "hub/checkpoints/mobilenet_v3_small-047dcff4.pth"
+        expected = "047dcff4addef86ea5bc2eff13c9614dc11f47ab1160d0a71a25e7db994f4e1f"
+        if not file.is_file() or hashlib.sha256(file.read_bytes()).hexdigest() != expected:
+            raise RuntimeError("Pinned MobileNetV3 Small weights missing or SHA256 mismatch")
     model = mobilenet_v3_small(weights=WEIGHTS)
     model.eval()
     model.to("cpu")

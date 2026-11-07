@@ -4,7 +4,7 @@
 
 A scoped Solana Devnet prototype: one image → fixed payment quote → one wallet-approved atomic transaction sending **0.007 test SOL** to the configured model-beneficiary wallet and **0.003 test SOL** to the compute-beneficiary wallet → independent server payment verification → private pretrained MobileNetV3 Small CPU inference → durable result with Solana Explorer receipt.
 
-**Status: implementation branch, not yet a verified paid Devnet demo.** Payment must be real, never faked. Do not treat UI code, mocked unit tests, or an unexecuted request as payment evidence.
+**Status: implemented and automated tests passing; a browser-approved live Devnet payment and public deployment are still not confirmed.** Payment must be real, never faked. Do not treat UI code, mocked unit tests, or an unexecuted request as payment evidence.
 
 ## Quick local setup
 
