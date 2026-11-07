@@ -21,6 +21,7 @@ function fixture() {
     capability_hash: "b".repeat(64), upload_path: "/tmp/no-image",
     created_at: now - 30_000, expires_at: now + 600_000,
     created_slot: 100, state: "QUOTED",
+    price_lamports: 10_000_000, creator_lamports: 7_000_000, provider_lamports: 3_000_000,
   };
   const unsigned = makeUnsigned(row, "11111111111111111111111111111111", 999999n);
   const signed = Buffer.from(unsigned, "base64");
