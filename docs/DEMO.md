@@ -60,3 +60,15 @@ See [CONTEXT](CONTEXT.md) for official schedule, [IMPLEMENTATION_PLAN](IMPLEMENT
 ## Failure fallback
 
 Maintain a genuine recorded run and local reproducible setup. If public RPC or hosting fails, disclose the outage and show the earlier recording as such. Never label local-validator output as Devnet or change to mainnet. Submit the best honest working slice before the deadline rather than risking the entry for one more feature.
+
+## Genuine screenshot capture plan (no artifacts captured yet)
+
+Only capture from the *same real* paid request on the public HTTPS origin after wallet approval and server-verified Devnet settlement:
+
+1. **Quote before approval**: image preview, immutable request ID, Devnet price, both full beneficiary addresses and 70/30 amounts. Use a sample image with clear use rights.
+2. **Wallet approval**: browser wallet visibly on Devnet, review of the same one transaction where supported; keep seed phrases, private keys and any unrelated balances out of frame. Do not enable automatic confirmation for a human-wallet proof.
+3. **Completed result and receipt**: top-three actual classes, real inferenceMs, signature, both recipients and request memo; request ID must match the quote.
+4. **Solana Explorer**: open the exact receipt signature with `?cluster=devnet`; show two successful native SOL transfers and memo in one transaction.
+5. **Failure/recovery evidence** separately labeled: pending and paid-failure/replay traces may be fixture screenshots but must never be portrayed as real settlement.
+
+Never screenshot browser sessionStorage, request capabilities, signed base64 transactions, private model worker tokens or wallet recovery details. Keep timestamps and tested commit in an evidence manifest and cross-check the Explorer signature. A screenshot or animation of an unpaid state is not a successful paid-run proof.
