@@ -98,10 +98,10 @@ If Devnet RPC fails, check the **same** candidate signature on an independently 
 | Worker auth/validation/forged-input rejection tests | **6 passed** in CI 42325487964 |
 | Fresh real PyTorch CPU inference on two images | **PASS** on GitHub Actions: opt-in test classified two fresh images with genuine CPU forward passes |
 | Node 24/npm resolution, exact lockfile, TS/Next build | **PASS** on GitHub Actions run 42324361698 |
-| Browser width 360/768/1440 and 5 disconnected/pending/failed/success fixture UI checks | **5 passed in Chromium**; actual wallet signing/keyboard manual review pending |
+| Browser widths 360/768/1440, including unpaid-quote cancellation and protected pending/paid-failure states | **6 fixture tests passed in Chromium**; run 42325896223. Human wallet signing/accessibility manual review pending |
 | Actual Devnet signature and Explorer recipients | **Not performed**; automated live attempt failed at Devnet faucet HTTP 410 before payment; needs funded wallets and payer approval |
 | Three fresh paid end-to-end runs | Not performed |
-| Persistent deployment and two demo rehearsals | Not performed |
+| Docker Compose readiness and SQLite volume restart | **PASS** in isolated CI smoke run 42325153752; public HTTPS host and two human rehearsals not yet performed |
 | Short public video, screenshots, submitted entry | Not performed |
 
 CI found vulnerabilities in the original Next 16.3.8/Zod 4.1.12 pins; updated to patched Next 16.4.5 and Zod 4.6.7. Latest npm audit produced **zero advisories for both runtime and development dependencies** following Vitest 4.1.12 upgrade (GitHub Actions 42325487964).
@@ -114,16 +114,26 @@ MLH event header reports **Nov 8 at 1:00 PM EST**, but its detailed schedule lis
 
 ## Next engineer's sequence
 
-Review current pull request and latest branch CI; reproduce Docker build/health with persistent storage; investigate remaining dev-only dependency advisories, then obtain operator-funded Devnet wallet approval for a genuine payment. The public RPC faucet produced HTTP 410, not a signature. When funded, run the live smoke and browser-wallet test, recheck exact message binding and receipt, then deploy with a persistent volume. Fix browser states and pending/paid failure edges, run restart/concurrency tests, and deploy with persistent volumes. Record real UTC timestamp, commit, commands and conclusion, only real signature and Explorer link, real measured CPU time, and user-provided public demo URL.
+Review draft PR #1 and current branch CI; the Docker Compose isolated persistence probe and zero-advisory audit passed. Next obtain operator-funded Devnet wallet approval for a genuine payment. The public RPC faucet produced HTTP 410, not a signature. When funded, run the live smoke and browser-wallet test, recheck exact message binding and receipt, then deploy with a persistent volume. Fix browser states and pending/paid failure edges, run restart/concurrency tests, and deploy with persistent volumes. Record real UTC timestamp, commit, commands and conclusion, only real signature and Explorer link, real measured CPU time, and user-provided public demo URL.
 
 Do not claim all MVP gates pass solely because the source exists.
 
 
 ### Memo-program version compatibility (7 November 2026)
 
-The generated `@solana-program/memo@0.16.0` instruction defaults to Memo v4 (`Memo4c2p...`), unlike the committed legacy payment contract (`MemoSq4...`). The implementation explicitly constructs a Kit instruction with the original Memo v2 address and UTF-8 request memo; the independent legacy parser enforces that same program. This is an exact contract fix, not a payment/split change. Verify GitHub CI for the resulting commit before marking its tests green. No real Devnet payment is claimed from this correction.
+The generated `@solana-program/memo@0.16.0` instruction defaults to Memo v4 (`Memo4c2p...`), unlike the committed legacy payment contract (`MemoSq4...`). The implementation explicitly constructs a Kit instruction with the original Memo v2 address and UTF-8 request memo; the independent legacy parser enforces that same program. This is an exact contract fix, not a payment/split change. **PASS:** Node gateway, browser, and worker CI run 42325616518 validated the exact Memo v2 payment instruction/parser after correction. No real Devnet payment is claimed from this correction.
 
 
 ### Reconciliation without an open browser
 
-The sole Node gateway now rechecks up to three persisted `SUBMITTED` signatures per 12-second server sweep. It never constructs another transaction or approves a payment on behalf of a wallet. RPC errors and unknown transactions remain `PAYMENT_PENDING`; successfully confirmed candidates advance through the same SQLite claim and job dispatcher even when the browser has closed. Startup additionally handles the exact-same-signed-transaction crash window. This is best-effort reconciliation on one running gateway process, not a delivery/exactly-once guarantee. CI for the implementing commit must pass before calling this tested.
+The sole Node gateway now rechecks up to three persisted `SUBMITTED` signatures per 12-second server sweep. It never constructs another transaction or approves a payment on behalf of a wallet. RPC errors and unknown transactions remain `PAYMENT_PENDING`; successfully confirmed candidates advance through the same SQLite claim and job dispatcher even when the browser has closed. Startup additionally handles the exact-same-signed-transaction crash window. This is best-effort reconciliation on one running gateway process, not a delivery/exactly-once guarantee. **PASS:** gateway/browser/worker CI run 42325960945; the follow-up dedicated bounded-sweep/overlap regression tests also passed in run 42326088446.
+
+
+## Latest verified branch acceptance (2026-11-07 UTC)
+
+- Last tested source commit: `b79f006fdcb7a9dbd65659f45bda3e474381f11e`, pushed to `feat/paid-inference-mvp-20261107`; review PR: https://github.com/ThunderKhan/alloc/pull/1 (draft, not merged).
+- CI https://github.com/ThunderKhan/alloc/actions/runs/42326088446: **success** on all gateway, worker, browser jobs. Includes strict legacy Memo v2 parsing, ten-process SQLite uniqueness race, actual CPU PyTorch model smoke, browser fixtures and the two bounded background reconciliation tests.
+- Docker Compose persistent volume readiness CI https://github.com/ThunderKhan/alloc/actions/runs/42325153752: **success**. This demonstrates container bootstrap and restart persistence on a hosted CI runner, not a public HTTPS deployment.
+- Real Devnet payment proof: **none**. A separate live test attempted public RPC faucet funding but received HTTP 410; do not claim a transaction signature or output paid by a Devnet transfer.
+- Next operator action: configure two distinct beneficiary **public addresses** and a third browser payer wallet on Devnet. Fund payer with free test SOL (at least 0.01 SOL plus fees), for example via official https://faucet.solana.com/ (currently 2 requests per 8h), not mainnet. Keep all three wallet secret keys privately in their respective wallet apps, never in .env, source, logs or this chat. Start the persistent Compose deployment and approve one prepared signed transaction with the payer wallet; collect a genuine Explorer receipt and corresponding real worker result. A working public HTTPS host/domain is still needed for the submission link.
+- Hard internal final submission target: **2026-11-08 21:30 IST**; official event schedule lists **22:15 IST**, earlier than its event-header 1:00 PM EST ending. No submission was made.
