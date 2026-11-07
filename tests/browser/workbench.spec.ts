@@ -99,3 +99,24 @@ test("successful result is displayed with inspectable matching receipt", async (
   await expect(page.getByText("Verified receipt")).toBeVisible();
   await expect(page.getByRole("button", {name:/New paid request/i})).toBeVisible();
 });
+
+test("server-confirmed unpaid quote can be discarded; no duplicate charge is offered", async ({page}) => {
+  await stubModel(page);
+  await stubRecoveredRequest(page, {
+    state: "QUOTED", signature: null,
+    quote: {
+      requestId: quoteId, payer: "payer-fixture", inputSha256: "a".repeat(64),
+      creator: {address: creator, lamports: "7000000"},
+      provider: {address: provider, lamports: "3000000"},
+      priceLamports: "10000000", memo: "alloc:v1:" + quoteId, expiresAt,
+      modelId: "mobilenet-v3-small", weightsId: "IMAGENET1K_V1",
+    },
+  });
+  await page.goto("/");
+  const discard = page.getByRole("button", { name: "Discard unpaid quote" });
+  await expect(discard).toBeVisible();
+  await discard.click();
+  await expect(discard).toHaveCount(0);
+  expect(await page.evaluate(() => sessionStorage.getItem("alloc:active-request"))).toBeNull();
+  await expect(page.getByRole("button", {name:/New paid request/i})).toHaveCount(0);
+});

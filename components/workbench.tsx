@@ -117,15 +117,16 @@ export default function Workbench() {
     if (!["image/jpeg", "image/png"].includes(selected.type) || selected.size > 5 * 1024 * 1024 || selected.size === 0) {
       setFile(null); setError("Choose a JPEG or PNG smaller than 5 MiB."); return;
     }
-    if (session && status && !terminal.has(status.state)) {
-      setError("An existing request is unresolved. Check its payment status before replacing the image.");
+    if (session && (!status || (!terminal.has(status.state) && status.state !== "QUOTED"))) {
+      setError("An existing payment is unresolved. Check its status before replacing the image.");
       return;
     }
+    if (session) startNew(); // Server-confirmed unpaid quotes can be abandoned safely.
     setQuote(null); setFile(selected);
   }
 
   async function createQuote() {
-    if (!file || !payer || working || session && status && !terminal.has(status.state)) return;
+    if (!file || !payer || working || session) return;
     setWorking("Validating image"); setError("");
     try {
       const form = new FormData();
@@ -203,7 +204,7 @@ export default function Workbench() {
   }
 
   function startNew() {
-    if (status && !terminal.has(status.state)) {
+    if (session && (!status || (!terminal.has(status.state) && (status.state !== "QUOTED" || !!status.signature)))) {
       setError("Please keep checking the existing payment; opening another purchase could charge again.");
       return;
     }
@@ -212,7 +213,7 @@ export default function Workbench() {
   }
 
   const current = status?.state;
-  const isPending = !!session && (!status || !terminal.has(status.state));
+  const isPending = !!session && (!status || (!terminal.has(status.state) && status.state !== "QUOTED"));
   const fixed = quote || model;
   const quotedPayerChanged = !!quote && quote.payer !== payer;
   const receipt = status?.receipt;
@@ -323,6 +324,7 @@ export default function Workbench() {
               {status?.signature && <div className="address">Signature: {status.signature}</div>}
               <div className="flex-gap"><Button variant="secondary" disabled={!!working}
                 onClick={() => void getStatus(session)}><RefreshCw size={16}/> Check payment</Button>
+                {current === "QUOTED" && !status?.signature && <Button variant="secondary" onClick={startNew}>Discard unpaid quote</Button>}
                 {current && terminal.has(current) && <Button variant="secondary" onClick={startNew}>New paid request</Button>}</div>
             </div>}
           </Card>
