@@ -55,6 +55,8 @@ export function db(): Database.Database {
     );
     CREATE UNIQUE INDEX IF NOT EXISTS one_live_attempt ON payment_attempts(request_id)
       WHERE state IN ('PREPARED','SUBMITTED','VERIFIED');
+    CREATE INDEX IF NOT EXISTS submitted_reconciliation_order
+      ON payment_attempts(prepared_at, id) WHERE state='SUBMITTED';
     CREATE TABLE IF NOT EXISTS fulfillments (
       request_id TEXT PRIMARY KEY REFERENCES requests(id),
       attempt_id TEXT NOT NULL UNIQUE REFERENCES payment_attempts(id),

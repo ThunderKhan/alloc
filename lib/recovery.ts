@@ -6,20 +6,42 @@ import { scheduleJobs } from "./jobs";
 
 let booted = false;
 let sweepInProgress = false;
+type Cursor = { prepared_at: number; id: string };
+type Candidate = Cursor & { request_id: string };
+let sweepCursor: Cursor | null = null;
 
-/** Scan only a bounded group of unclaimed signed candidates. A confirmed chain
- * payment is allowed to finish without any browser polling, and a temporary
- * RPC failure leaves the very same signature pending. */
+/** Fair, bounded round-robin over persisted SUBMITTED signatures. Older
+ * unresolved RPC outcomes never prevent newer signatures being checked.
+ * A sweep verifies existing signed bytes; it cannot sign or charge anew. */
 export async function reconcilePendingCandidates(limit = 3) {
   if (sweepInProgress) return;
   sweepInProgress = true;
   try {
-    const candidates = db().prepare(
-      "SELECT request_id FROM payment_attempts WHERE state='SUBMITTED' ORDER BY prepared_at LIMIT ?"
-    ).all(Math.min(Math.max(1, Math.floor(limit)), 3)) as Array<{request_id: string}>;
-    for (const {request_id} of candidates) {
+    const max = Math.min(Math.max(1, Number.isFinite(limit) ? Math.floor(limit) : 3), 3);
+    const database = db();
+    let candidates: Candidate[];
+    if (sweepCursor) {
+      candidates = database.prepare(
+        "SELECT request_id, prepared_at, id FROM payment_attempts WHERE state='SUBMITTED' AND (prepared_at, id) > (?, ?) ORDER BY prepared_at, id LIMIT ?"
+      ).all(sweepCursor.prepared_at, sweepCursor.id, max) as Candidate[];
+      if (candidates.length < max) {
+        const wrap = database.prepare(
+          "SELECT request_id, prepared_at, id FROM payment_attempts WHERE state='SUBMITTED' AND (prepared_at, id) <= (?, ?) ORDER BY prepared_at, id LIMIT ?"
+        ).all(sweepCursor.prepared_at, sweepCursor.id, max - candidates.length) as Candidate[];
+        candidates.push(...wrap);
+      }
+    } else {
+      candidates = database.prepare(
+        "SELECT request_id, prepared_at, id FROM payment_attempts WHERE state='SUBMITTED' ORDER BY prepared_at, id LIMIT ?"
+      ).all(max) as Candidate[];
+    }
+    if (candidates.length === 0) { sweepCursor = null; return; }
+    // Advance BEFORE any RPC awaits, including failing / timed-out lookups.
+    const last = candidates[candidates.length - 1];
+    sweepCursor = { prepared_at: last.prepared_at, id: last.id };
+    for (const { request_id } of candidates) {
       try { await reconcile(request_id); }
-      catch { /* Retain pending until genuine on-chain evidence is available. */ }
+      catch { /* Keep the same signed candidate pending for a later sweep. */ }
     }
   } finally { sweepInProgress = false; }
 }
