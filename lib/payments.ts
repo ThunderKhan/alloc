@@ -129,8 +129,8 @@ export function status(id: string) {
   const fulfillment = getFulfillment(id);
   const receipt = attempt?.state === "VERIFIED" && attempt.signature && attempt.verified_slot != null ? {
     network: "devnet", signature: attempt.signature, slot: attempt.verified_slot,
-    commitment: "confirmed", priceLamports: "10000000", creatorLamports: "7000000",
-    providerLamports: "3000000", creatorAddress: request.creator,
+    commitment: "confirmed", priceLamports: String(request.price_lamports), creatorLamports: String(request.creator_lamports),
+    providerLamports: String(request.provider_lamports), creatorAddress: request.creator,
     providerAddress: request.provider, memo: "alloc:v1:" + id,
     explorerUrl: `https://explorer.solana.com/tx/${attempt.signature}?cluster=devnet`,
   } : null;

@@ -22,7 +22,7 @@ type Status = {
     creatorLamports: string; providerLamports: string; memo: string } | null;
   errorCode?: string | null;
 };
-type LocalSession = { requestId: string; capability: string; payer: string; expiresAt: string };
+type LocalSession = { requestId: string; capability: string; payer: string; expiresAt: string; quote?: Quote };
 const STORAGE_KEY = "alloc:active-request";
 const terminal = new Set(["SUCCEEDED", "PAID_FAILED", "EXPIRED"]);
 const stateText: Record<string, string> = {
@@ -87,6 +87,7 @@ export default function Workbench() {
         const s = JSON.parse(stored) as LocalSession;
         if (s.capability && s.requestId && new Date(s.expiresAt).getTime() + 86400000 > Date.now()) {
           setSession(s);
+          if (s.quote?.requestId === s.requestId && s.quote.payer === s.payer) setQuote(s.quote);
           void getStatus(s);
         } else sessionStorage.removeItem(STORAGE_KEY);
       } catch { sessionStorage.removeItem(STORAGE_KEY); }
@@ -131,7 +132,7 @@ export default function Workbench() {
       if (!response.ok) throw new Error(readError(payload));
       const q = payload as Quote;
       setQuote(q);
-      const s = { requestId: q.requestId, capability: q.capability, payer: q.payer, expiresAt: q.expiresAt };
+      const s = { requestId: q.requestId, capability: q.capability, payer: q.payer, expiresAt: q.expiresAt, quote: q };
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(s));
       setSession(s); setStatus(null);
     } catch (e) { setError(e instanceof Error ? e.message : "Quote failed"); }

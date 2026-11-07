@@ -10,7 +10,7 @@ import { getAddMemoInstruction } from "@solana-program/memo";
 import { createPublicKey, createHash, timingSafeEqual, verify as verifyEd25519 } from "node:crypto";
 import { ApiError } from "./errors";
 import { config } from "./config";
-import { CREATOR_AMOUNT, PROVIDER_AMOUNT } from "./constants";
+import { PRICE, CREATOR_AMOUNT, PROVIDER_AMOUNT } from "./constants";
 import type { AttemptRow, RequestRow } from "./db";
 
 export const DEVNET_GENESIS = "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG";
@@ -42,14 +42,19 @@ export function makeUnsigned(row: RequestRow, blockhash: string, lastValidBlockH
   if (row.creator === row.provider || row.payer === row.creator || row.payer === row.provider) {
     throw new ApiError(400, "INVALID_INPUT", "Payer and beneficiaries must be distinct");
   }
+  if (row.price_lamports !== PRICE || row.creator_lamports !== CREATOR_AMOUNT ||
+      row.provider_lamports !== PROVIDER_AMOUNT ||
+      row.creator_lamports + row.provider_lamports !== row.price_lamports) {
+    throw new ApiError(503, "SERVICE_UNAVAILABLE", "Stored quote price or split differs from fixed Devnet contract");
+  }
   const payer = address(row.payer);
   const signedSource = createNoopSigner(payer);
   const instructions = [
     getTransferSolInstruction({
-      source: signedSource, destination: address(row.creator), amount: lamports(BigInt(CREATOR_AMOUNT)),
+      source: signedSource, destination: address(row.creator), amount: lamports(BigInt(row.creator_lamports)),
     }),
     getTransferSolInstruction({
-      source: signedSource, destination: address(row.provider), amount: lamports(BigInt(PROVIDER_AMOUNT)),
+      source: signedSource, destination: address(row.provider), amount: lamports(BigInt(row.provider_lamports)),
     }),
     getAddMemoInstruction({ memo: memoFor(row.id) }),
   ];

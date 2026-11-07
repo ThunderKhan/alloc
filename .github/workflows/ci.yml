@@ -28,6 +28,10 @@ jobs:
             git commit -m "build: commit reproducible npm dependency lock"
             git push origin HEAD:feat/paid-inference-mvp-20261107
           fi
+      - name: Report production dependency advisories
+        run: |
+          npm audit --omit=dev --json > npm-audit.json || true
+          node -e 'const a=require("./npm-audit.json"); for(const [name,v] of Object.entries(a.vulnerabilities || {})) console.log(JSON.stringify({name,severity:v.severity,range:v.range,via:v.via,fixAvailable:v.fixAvailable}));'
       - name: TypeScript
         run: npm run typecheck
       - name: Payment and persistence tests

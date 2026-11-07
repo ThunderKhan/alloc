@@ -10,6 +10,7 @@ export type RequestRow = {
   upload_path: string; model_id: string; weights_id: string;
   created_at: number; expires_at: number; created_slot: number; state: RequestState;
   creator: string; provider: string;
+  price_lamports: number; creator_lamports: number; provider_lamports: number;
 };
 export type AttemptRow = {
   id: string; request_id: string; unsigned_base64: string; message_sha256: string;
@@ -40,7 +41,10 @@ export function db(): Database.Database {
       payer TEXT NOT NULL, input_sha256 TEXT NOT NULL,
       upload_path TEXT NOT NULL, model_id TEXT NOT NULL, weights_id TEXT NOT NULL,
       created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, created_slot INTEGER NOT NULL,
-      state TEXT NOT NULL, creator TEXT NOT NULL, provider TEXT NOT NULL
+      state TEXT NOT NULL, creator TEXT NOT NULL, provider TEXT NOT NULL,
+      price_lamports INTEGER NOT NULL DEFAULT 10000000,
+      creator_lamports INTEGER NOT NULL DEFAULT 7000000,
+      provider_lamports INTEGER NOT NULL DEFAULT 3000000
     );
     CREATE TABLE IF NOT EXISTS payment_attempts (
       id TEXT PRIMARY KEY, request_id TEXT NOT NULL REFERENCES requests(id),
@@ -62,6 +66,19 @@ export function db(): Database.Database {
       at_ms INTEGER NOT NULL, event TEXT NOT NULL
     );
   `);
+  // Migrate earlier feature-branch database files without dropping requests or payments.
+  const existingColumns = new Set(
+    (database.pragma("table_info(requests)") as Array<{ name: string }>).map(col => col.name)
+  );
+  for (const [column, amount] of [
+    ["price_lamports", 10000000],
+    ["creator_lamports", 7000000],
+    ["provider_lamports", 3000000],
+  ] as const) {
+    if (!existingColumns.has(column)) {
+      database.exec(`ALTER TABLE requests ADD COLUMN ${column} INTEGER NOT NULL DEFAULT ${amount}`);
+    }
+  }
   // An uncertain computation may have completed before the crash; never auto-run it.
   database.prepare("UPDATE fulfillments SET state='PAID_FAILED', finished_at=?, error_code='INTERRUPTED' WHERE state='RUNNING'")
     .run(Date.now());
@@ -74,7 +91,7 @@ export function getRequest(id: string): RequestRow | undefined {
   return db().prepare("SELECT * FROM requests WHERE id=?").get(id) as RequestRow | undefined;
 }
 export function getAttempt(id: string): AttemptRow | undefined {
-  return db().prepare("SELECT * FROM payment_attempts WHERE request_id=? ORDER BY prepared_at DESC LIMIT 1")
+  return db().prepare("SELECT * FROM payment_attempts WHERE request_id=? ORDER BY rowid DESC LIMIT 1")
     .get(id) as AttemptRow | undefined;
 }
 export function getFulfillment(id: string): FulfillmentRow | undefined {
