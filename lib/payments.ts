@@ -143,6 +143,18 @@ export function status(id: string) {
   } : null;
   const state = !attempt && request.state === "QUOTED" && Date.now() > request.expires_at ? "EXPIRED" : request.state;
   return {
+    // Recover the exact immutable quote using the caller's bearer capability.
+    // No capability or image bytes are included in this response.
+    quote: {
+      requestId: id, network: "devnet",
+      payer: request.payer, inputSha256: request.input_sha256,
+      modelId: request.model_id, weightsId: request.weights_id,
+      priceLamports: String(request.price_lamports),
+      creator: { address: request.creator, lamports: String(request.creator_lamports) },
+      provider: { address: request.provider, lamports: String(request.provider_lamports) },
+      memo: "alloc:v1:" + id,
+      expiresAt: new Date(request.expires_at).toISOString(),
+    },
     requestId: id, state, receipt,
     signature: attempt?.state === "SUBMITTED" || attempt?.state === "VERIFIED" ? attempt.signature : null,
     expiresAt: new Date(request.expires_at).toISOString(),

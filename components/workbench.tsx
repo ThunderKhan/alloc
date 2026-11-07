@@ -72,6 +72,10 @@ export default function Workbench() {
       const body = await response.json();
       if (!response.ok) throw new Error(readError(body));
       setStatus(body as Status);
+      if (body.quote?.requestId === s.requestId && body.quote?.payer === s.payer) {
+        setQuote(previous => previous?.requestId === s.requestId
+          ? previous : { ...body.quote, capability: s.capability } as Quote);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to check payment. Try again later.");
     }
@@ -296,7 +300,7 @@ export default function Workbench() {
             </div>}
             {!session && <Button className="full" disabled={!file || !payer || !model || !!working}
               onClick={() => void createQuote()}><ScanSearch size={18}/>{working || "Validate & lock quote"}</Button>}
-            {quote && !status?.signature && !terminal.has(current || "") && <>
+            {quote && (!status || status.state === "QUOTED") && <>
               {quotedPayerChanged && <p className="error">Connected payer has changed. Reconnect the quoted payer to approve.</p>}
               <Button className="full" disabled={!!working || quotedPayerChanged || !connected?.signer}
                 onClick={() => void approve()}><Wallet size={18}/>{working || "Approve payment & classify"}</Button>

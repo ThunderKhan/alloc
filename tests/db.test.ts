@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { db, getRequest, requireRequest, transact } from "../lib/db";
+import { status } from "../lib/payments";
 
 const tmp = mkdtempSync(join(tmpdir(), "alloc-db-test-"));
 process.env.DATABASE_PATH = join(tmp,"ledger.sqlite");
@@ -26,6 +27,16 @@ describe("durable ledger", () => {
     expect(() => requireRequest(id, null)).toThrow();
     expect(() => requireRequest(id, "Bearer bad")).toThrow();
     expect(requireRequest(id, "Bearer "+capability).id).toBe(id);
+  });
+  it("recovers immutable quote after refresh without exposing the bearer or input", () => {
+    const response = status(id);
+    expect(response.quote.requestId).toBe(id);
+    expect(response.quote.payer).toBe("PAYER");
+    expect(response.quote.priceLamports).toBe("10000000");
+    expect(response.quote.creator.lamports).toBe("7000000");
+    expect(response.quote.provider.lamports).toBe("3000000");
+    expect(JSON.stringify(response)).not.toContain(capability);
+    expect(JSON.stringify(response)).not.toContain("capability_hash");
   });
   it("denies signature reuse across requests", () => {
     const other = randomUUID();
