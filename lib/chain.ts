@@ -24,8 +24,8 @@ export async function assertDevnet(url?: string) {
   const genesis = await rpc(url).getGenesisHash().send();
   if (genesis !== DEVNET_GENESIS) throw new ApiError(503, "SERVICE_UNAVAILABLE", "RPC genesis is not Devnet");
 }
-export function base64(bytes: Uint8Array): string {
-  return Buffer.from(bytes).toString("base64");
+export function base64(bytes: { readonly length: number; readonly [index: number]: number }): string {
+  return Buffer.from(Array.from({length: bytes.length}, (_, i) => bytes[i])).toString("base64");
 }
 export function bytes64(text: string): Buffer {
   if (text.length > 8192 || !/^[A-Za-z0-9+/]+={0,2}$/.test(text) || text.length % 4 !== 0) {
@@ -148,7 +148,7 @@ export async function broadcast(signedBase64: string): Promise<void> {
   try {
     await rpc(cfg.rpc).sendTransaction(signedBase64 as never, {
       encoding: "base64", preflightCommitment: "confirmed", skipPreflight: false,
-      maxRetries: 2,
+      maxRetries: 2n,
     }).send();
   } catch {
     // A timed-out send can still land. The signature is durable and will be reconciled.
