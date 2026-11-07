@@ -122,3 +122,8 @@ Do not claim all MVP gates pass solely because the source exists.
 ### Memo-program version compatibility (7 November 2026)
 
 The generated `@solana-program/memo@0.16.0` instruction defaults to Memo v4 (`Memo4c2p...`), unlike the committed legacy payment contract (`MemoSq4...`). The implementation explicitly constructs a Kit instruction with the original Memo v2 address and UTF-8 request memo; the independent legacy parser enforces that same program. This is an exact contract fix, not a payment/split change. Verify GitHub CI for the resulting commit before marking its tests green. No real Devnet payment is claimed from this correction.
+
+
+### Reconciliation without an open browser
+
+The sole Node gateway now rechecks up to three persisted `SUBMITTED` signatures per 12-second server sweep. It never constructs another transaction or approves a payment on behalf of a wallet. RPC errors and unknown transactions remain `PAYMENT_PENDING`; successfully confirmed candidates advance through the same SQLite claim and job dispatcher even when the browser has closed. Startup additionally handles the exact-same-signed-transaction crash window. This is best-effort reconciliation on one running gateway process, not a delivery/exactly-once guarantee. CI for the implementing commit must pass before calling this tested.

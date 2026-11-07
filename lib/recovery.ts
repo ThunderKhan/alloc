@@ -5,6 +5,25 @@ import { broadcast, rpc } from "./chain";
 import { scheduleJobs } from "./jobs";
 
 let booted = false;
+let sweepInProgress = false;
+
+/** Scan only a bounded group of unclaimed signed candidates. A confirmed chain
+ * payment is allowed to finish without any browser polling, and a temporary
+ * RPC failure leaves the very same signature pending. */
+export async function reconcilePendingCandidates(limit = 3) {
+  if (sweepInProgress) return;
+  sweepInProgress = true;
+  try {
+    const candidates = db().prepare(
+      "SELECT request_id FROM payment_attempts WHERE state='SUBMITTED' ORDER BY prepared_at LIMIT ?"
+    ).all(Math.min(Math.max(1, Math.floor(limit)), 3)) as Array<{request_id: string}>;
+    for (const {request_id} of candidates) {
+      try { await reconcile(request_id); }
+      catch { /* Retain pending until genuine on-chain evidence is available. */ }
+    }
+  } finally { sweepInProgress = false; }
+}
+
 
 /** Re-send only the exact signed candidate already approved by the wallet.
  * A second broadcast with identical signature cannot authorize a second charge.
@@ -65,6 +84,10 @@ export async function startRecovery() {
     }
   }
   await housekeeping();
-  const interval = setInterval(() => {void housekeeping().catch(() => undefined);}, 15 * 60 * 1000);
-  interval.unref();
+  const cleanupTimer = setInterval(() => {void housekeeping().catch(() => undefined);}, 15 * 60 * 1000);
+  cleanupTimer.unref();
+  // Browser closure is not a payment failure. Continue reconciling the persisted
+  // candidates on the sole gateway replica without resending or recharging.
+  const paymentTimer = setInterval(() => { void reconcilePendingCandidates().catch(() => undefined); }, 12_000);
+  paymentTimer.unref();
 }
