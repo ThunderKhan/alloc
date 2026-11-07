@@ -33,7 +33,15 @@ const dir = mkdtempSync(join(tmpdir(), "alloc-paid-jobs-test-"));
 const path = join(dir, "ledger.sqlite");
 process.env.DATABASE_PATH = path;
 const database = db();
-afterAll(() => { database.close(); rmSync(dir, { recursive: true, force: true }); });
+afterAll(async () => {
+  // The observed database state can become terminal while the setImmediate
+  // job pump is still draining its final loop. Let those callbacks exit before
+  // closing SQLite so test teardown cannot race the background dispatcher.
+  await new Promise<void>(resolve => setImmediate(resolve));
+  await new Promise<void>(resolve => setImmediate(resolve));
+  database.close();
+  rmSync(dir, { recursive: true, force: true });
+});
 
 function seedVerifiedPayment() {
   const requestId = randomUUID(), attemptId = randomUUID(), signature = randomUUID();
