@@ -32,6 +32,10 @@ jobs:
         run: |
           npm audit --omit=dev --json > npm-audit.json || true
           node -e 'const a=require("./npm-audit.json"); for(const [name,v] of Object.entries(a.vulnerabilities || {})) console.log(JSON.stringify({name,severity:v.severity,range:v.range,via:v.via,fixAvailable:v.fixAvailable}));'
+      - name: Report dev-only advisories separately
+        run: |
+          npm audit --json > npm-audit-all.json || true
+          node -e 'const a=require("./npm-audit-all.json"); for(const [name,v] of Object.entries(a.vulnerabilities || {})) console.log(JSON.stringify({name,severity:v.severity,range:v.range,fixAvailable:v.fixAvailable,via:v.via}));'
       - name: TypeScript
         run: npm run typecheck
       - name: Payment and persistence tests

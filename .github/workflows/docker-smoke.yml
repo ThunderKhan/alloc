@@ -1,0 +1,68 @@
+name: Docker Compose persistent deployment smoke
+on:
+  push:
+    branches: ['feat/paid-inference-mvp-20261107']
+    paths:
+      - '.github/workflows/docker-smoke.yml'
+      - 'Dockerfile'
+      - 'compose.yaml'
+      - 'worker/Dockerfile'
+      - 'worker/app.py'
+      - 'worker/requirements.txt'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure isolated ephemeral demo (public addresses only)
+        run: |
+          cp .env.example .env
+          echo "CREATOR_PUBLIC_KEY=FnHyam9w4NZoWR6mKN1CuGBritdsEWZQa4Z4oawLZGxa" >> .env
+          echo "PROVIDER_PUBLIC_KEY=JJBeanoTcSMU3xKQa5Gru71Wi3AaEgTfA6z7MaLUT6h" >> .env
+          echo "WORKER_TOKEN=$(openssl rand -hex 32)" >> .env
+      - name: Build and start private worker plus gateway
+        run: docker compose up --build -d
+      - name: Probe model config, readiness and isolation
+        run: |
+          node --input-type=module - <<'JS'
+          import assert from 'node:assert/strict';
+          const base='http://127.0.0.1:3000';
+          let healthy=false, latest='';
+          for(let i=0;i<80;i++){
+            try{
+              const health=await fetch(base+'/api/v1/health',{signal:AbortSignal.timeout(4000)});
+              latest=`${health.status} ${await health.text()}`;
+              if(health.ok){healthy=true;break;}
+            }catch(e){latest=String(e);}
+            await new Promise(r=>setTimeout(r,3000));
+          }
+          assert.ok(healthy,'Gateway + worker + Devnet readiness did not succeed: '+latest);
+          const response=await fetch(base+'/api/v1/model');
+          assert.equal(response.status,200);
+          const model=await response.json();
+          assert.equal(model.network,'devnet');
+          assert.equal(model.priceLamports,'10000000');
+          assert.equal(model.creator.lamports,'7000000');
+          assert.equal(model.provider.lamports,'3000000');
+          assert.notEqual(model.creator.address,model.provider.address);
+          assert.equal((await fetch(base+'/api/v1/requests/'+crypto.randomUUID())).status,401);
+          console.log('Docker smoke passed: worker ready, live Devnet genesis, public quote config, protected request.');
+          JS
+      - name: Assert persistence across gateway restart
+        run: |
+          docker compose exec -T gateway node -e 'require("node:fs").writeFileSync("/data/persistence-probe","alloc-durable-volume")'
+          docker compose restart gateway
+          docker compose exec -T gateway node -e 'const fs=require("node:fs");if(fs.readFileSync("/data/persistence-probe","utf8")!=="alloc-durable-volume")process.exit(1)'
+          echo "Persisted Docker /data volume across gateway restart."
+      - name: Print sanitized container state on failure
+        if: failure()
+        run: |
+          docker compose ps
+          docker compose logs --no-color --tail=45 gateway worker
+      - name: Shut down without deleting persisted volumes
+        if: always()
+        run: docker compose down || true
