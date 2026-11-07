@@ -9,6 +9,7 @@ import { getTransferSolInstruction } from "@solana-program/system";
 import { getAddMemoInstruction } from "@solana-program/memo";
 import { createPublicKey, createHash, timingSafeEqual, verify as verifyEd25519 } from "node:crypto";
 import { ApiError } from "./errors";
+import { validateExactLegacyMessage } from "./verify-message";
 import { config } from "./config";
 import { PRICE, CREATOR_AMOUNT, PROVIDER_AMOUNT } from "./constants";
 import type { AttemptRow, RequestRow } from "./db";
@@ -124,6 +125,7 @@ export function verifyRpcEvidence(
   if (!attempt.signature || signatureFromSigned(encoded, attempt, request.payer) !== attempt.signature) {
     throw new ApiError(422, "PAYMENT_MISMATCH", "Transaction signature does not match candidate");
   }
+  validateExactLegacyMessage(signed, request, attempt);
   return { kind: "confirmed", signature: attempt.signature, slot };
 }
 

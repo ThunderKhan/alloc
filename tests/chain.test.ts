@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateKeyPairSync, sign } from "node:crypto";
+import { generateKeyPairSync, sign, createHash } from "node:crypto";
 import { getBase58Decoder } from "@solana/kit";
 import { ApiError } from "../lib/errors";
 import { makeUnsigned, signatureFromSigned, verifyRpcEvidence } from "../lib/chain";
@@ -30,7 +30,7 @@ function fixture() {
   const signedBase64 = signed.toString("base64");
   const attempt: AttemptRow = {
     id: "a", request_id: row.id, unsigned_base64: unsigned,
-    message_sha256: "c".repeat(64), blockhash: "11111111111111111111111111111111",
+    message_sha256: createHash("sha256").update(signed.subarray(65)).digest("hex"), blockhash: "11111111111111111111111111111111",
     last_valid_block_height: 999999, prepared_at: now,
     signature: null, signed_base64: signedBase64, state: "SUBMITTED", verified_slot: null,
   };
@@ -48,6 +48,18 @@ describe("prepared legacy transaction and independent chain evidence", () => {
       meta, slot: 101, blockTime: Math.floor(Date.now() / 1000),
       transaction: [x.signedBase64, "base64"], version: "legacy",
     }, x.row, x.attempt)).toEqual({ kind: "confirmed", slot: 101, signature: x.attempt.signature });
+  });
+  it("rejects modified quote roles/amounts even when signed wire equals saved candidate", () => {
+    const a = fixture();
+    const rpcTx = {
+      meta: { err: null }, slot: 101, blockTime: Math.floor(Date.now()/1000),
+      transaction: [a.signedBase64,"base64"], version: "legacy",
+    };
+    expect(() => verifyRpcEvidence(rpcTx,{...a.row,creator_lamports:6_000_000},a.attempt)).toThrow(ApiError);
+    expect(() => verifyRpcEvidence(rpcTx,{...a.row,provider_lamports:4_000_000},a.attempt)).toThrow(ApiError);
+    expect(() => verifyRpcEvidence(rpcTx,{...a.row,creator:provider,provider:creator},a.attempt)).toThrow(ApiError);
+    expect(() => verifyRpcEvidence(rpcTx,{...a.row,id:"dd48ae74-bd86-4e18-9aa0-ea27ddb3e646"},a.attempt)).toThrow(ApiError);
+    expect(() => verifyRpcEvidence(rpcTx,a.row,{...a.attempt,message_sha256:"0".repeat(64)})).toThrow(ApiError);
   });
   it("rejects a signed candidate under a distinct request", () => {
     const a = fixture();
