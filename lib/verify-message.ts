@@ -64,7 +64,7 @@ export function validateExactLegacyMessage(
       keys[0] !== request.payer || !keys.includes(request.creator) ||
       !keys.includes(request.provider) || !keys.includes(SYSTEM_PROGRAM) ||
       !keys.includes(MEMO_PROGRAM)) {
-    mismatch("Fee payer or beneficiary/program account mismatch");
+    mismatch("Fee payer or beneficiary/program account mismatch: keys=" + keys.join(",") + " expected=" + [request.payer,request.creator,request.provider,SYSTEM_PROGRAM,MEMO_PROGRAM].join(","));
   }
   const blockhash = BASE58.decode(sliceBytes(signedWire, position, 32));
   if (blockhash !== attempt.blockhash) mismatch("Recent blockhash mismatch");
