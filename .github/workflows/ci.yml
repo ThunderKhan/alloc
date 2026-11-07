@@ -57,3 +57,18 @@ jobs:
           PYTHONPATH: worker
           ALLOC_REAL_MODEL_TEST: '1'
         run: python -m pytest worker/test_app.py -q -m live_model
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --package-lock-only --ignore-scripts
+      - run: npm ci
+      - name: Install headless Chromium
+        run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Browser state and responsive tests (fixtures only)
+        run: npm run test:browser
