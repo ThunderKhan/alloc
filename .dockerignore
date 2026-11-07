@@ -1,0 +1,16 @@
+node_modules
+.next
+.env
+.env.*
+!.env.example
+data
+uploads
+.git
+.venv
+__pycache__
+.pytest_cache
+*.sqlite*
+*.db
+*.log
+*.key
+*keypair*.json

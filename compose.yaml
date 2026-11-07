@@ -1,0 +1,34 @@
+services:
+  gateway:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_PATH: /data/alloc.sqlite
+      UPLOAD_DIR: /data/uploads
+      WORKER_URL: http://worker:8000
+    depends_on:
+      worker:
+        condition: service_healthy
+    volumes:
+      - alloc-data:/data
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+  worker:
+    build: ./worker
+    environment:
+      WORKER_TOKEN: ${WORKER_TOKEN:?Set WORKER_TOKEN in .env}
+      TORCH_HOME: /models
+    volumes:
+      - alloc-models:/models
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(1); s.connect(('127.0.0.1',8000)); s.close()"]
+      interval: 15s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+volumes:
+  alloc-data:
+  alloc-models:

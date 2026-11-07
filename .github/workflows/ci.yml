@@ -1,0 +1,43 @@
+name: Alloc checks
+on:
+  push:
+    branches: ['feat/paid-inference-mvp-20261107', main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gateway:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install pinned dependencies (lockfile required)
+        run: npm ci
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Payment and persistence tests
+        run: npm test
+      - name: Next.js production build
+        run: npm run build
+  worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --upgrade pip pytest httpx
+      - run: python -m pip install torch==2.10.0 torchvision==0.25.0 --index-url https://download.pytorch.org/whl/cpu
+      - run: python -m pip install -r worker/requirements.txt
+      - name: Worker isolation/validation checks
+        env:
+          PYTHONPATH: worker
+        run: python -m pytest worker/test_app.py -q -m 'not live_model'
+      - name: Real PyTorch CPU inference smoke
+        env:
+          PYTHONPATH: worker
+          ALLOC_REAL_MODEL_TEST: '1'
+        run: python -m pytest worker/test_app.py -q -m live_model
