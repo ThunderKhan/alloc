@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     if (isAtCapacity()) throw new ApiError(429, "RATE_LIMITED", "Inference queue full", true);
     await workerReady(); // Do not issue payment quotes while the model is unavailable.
     const form = await request.formData();
-    if (form.size !== 2 || typeof form.get("payer") !== "string" || !(form.get("image") instanceof File)) {
+    if (Array.from(form.keys()).length !== 2 || form.getAll("payer").length !== 1 || form.getAll("image").length !== 1 || typeof form.get("payer") !== "string" || !(form.get("image") instanceof File)) {
       throw new ApiError(400, "INVALID_INPUT", "Exactly one image and payer are required");
     }
     const payer = form.get("payer") as string;
