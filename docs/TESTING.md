@@ -1,6 +1,6 @@
 # Alloc — testing and release evidence
 
-This is a test plan. **No tests have run or passed at this documentation baseline.** Test the risky boundaries rather than mirroring UI implementation.
+This is the acceptance plan plus recorded implementation evidence. **Completed automated checks are not paid Devnet evidence.** On 2026-11-07, GitHub Actions run [42325487964](https://github.com/ThunderKhan/alloc/actions/runs/42325487964) passed Node 24 install/TypeScript/Next build, **15 Vitest gateway tests** (including independent legacy-transaction decoding/amount/recipient/memo hostility and multi-process SQLite claims), **5 Chromium fixture UI tests**, and **7 Python worker tests**, one of which executed pretrained MobileNetV3 Small on two fresh images. The **explicit Memo v2** contract update is separately being rechecked and must have its own successful run before being considered green. Docker Compose [42325153752](https://github.com/ThunderKhan/alloc/actions/runs/42325153752) passed build, readiness and volume-restart checks. The only opt-in live Devnet smoke [42324588291](https://github.com/ThunderKhan/alloc/actions/runs/42324588291) failed before payment: public RPC `requestAirdrop` returned HTTP 410, **no signature or on-chain payment**. Test the risky boundaries rather than mirroring UI implementation.
 
 ## Verification layers
 

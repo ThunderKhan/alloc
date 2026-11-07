@@ -19,10 +19,15 @@ This file separates implemented source, tests actually passed, and externally bl
 - `e0c9ff3`–`443c762`: Kit API compatibility, stored immutable price/split, startup recovery, ten-process claim race, bounded upload streams, browser failure/recovery tests and patched dependencies.
 - `cc4baea`: opt-in real Devnet smoke using temporary in-memory test wallets (no private keys stored). This run was **blocked at faucet funding**, not a successful payment.
 - `2dec09b`: pinned-model file full SHA-256 check; model load fails before accepting payments if cache is missing/tampered.
+- `91d4e2c`–`fa94f96`: wallet partial-signing of exact Kit transaction and lifetime reconstruction, fixed quote recovery.
+- `8b1ae1c`: restart-safe rebroadcast of the *same* signed candidate after a crash before network submission; never authorize a second signature.
+- `1d784a9`: independent Docker Compose deployment smoke CI and complete npm audit reporting.
+- `8b4ad51`–`66dded4`: independent legacy-wire instruction decoder verifying exact payer/beneficiaries/amounts/memo, contract-preserving explicit Memo v2 builder; final v2 commit awaiting its own CI pass.
+- `390c080`: upgrade test-only Vitest to patched v4; subsequent npm audit reports zero advisories.
 
 **Implemented (source present, not execution proof)**: private /validate and /infer, immutable upload/quote, server-bound signed payment candidate, single-signer check, two-recipient/memo prepared bytes, signature collision tombstones, post-RPC verification and unique claim, conditional worker dispatch, stored result/receipt, paid-failure and refresh UI, Docker Compose /data persistence.
 
-**Not yet verified**: actual browser wallet signing, genuine Devnet split, cross-restart live chain claim, Docker deployment on persistent host, and three fresh paid model outputs. GitHub Actions **42324749538** (commit 2dec09b) passed Node 24 installation, TypeScript, 11 Vitest gateway tests (including cross-process SQLite claims), Next 16.4.5 production build, 5 Chromium UI fixture tests, 6 worker security tests and 1 genuine CPU pretrained-model test. Logs: https://github.com/ThunderKhan/alloc/actions/runs/42324749538 . These checks do NOT prove a funded Solana transaction or human wallet approval.
+**Not yet verified**: actual browser wallet signing, genuine Devnet split, cross-restart live chain claim, Docker deployment on persistent host, and three fresh paid model outputs. GitHub Actions **42325487964** (commit 3aa8479) passed Node 24 installation, TypeScript, **15 Vitest gateway tests** (including cross-process SQLite claims and exact legacy-wire parsing), Next 16.4.5 production build, **5 Chromium UI fixture tests**, **6 worker security tests** and **1 genuine CPU pretrained-model test**. Logs: https://github.com/ThunderKhan/alloc/actions/runs/42325487964 . The explicit Memo v2 builder+strict parser commit **66dded4** has a separate CI run pending at this documentation snapshot. These checks do NOT prove a funded Solana transaction or human wallet approval.
 
 ## Environment and dependencies
 
@@ -59,7 +64,7 @@ PYTHONPATH=worker python3.11 -m pytest worker/test_app.py -q -m 'not live_model'
 ALLOC_REAL_MODEL_TEST=1 PYTHONPATH=worker python3.11 -m pytest worker/test_app.py -q -m live_model
 ```
 
-The gateway is bound to **localhost port 3000** by `compose.yaml`; the worker port is not published. For external public demo, configure a separately managed HTTPS reverse proxy with explicit upload size cap and persistent storage, then verify full flow through that public origin. No hosting purchased or provisioned yet; public app URL **unknown**. Public Devnet RPC `requestAirdrop` returned HTTP 410 in live smoke run https://github.com/ThunderKhan/alloc/actions/runs/42324588291 (2026-11-07 UTC). The smoke test exited at its faucet step **before creating a quote or broadcasting any payment**. It is not real settlement evidence. User-controlled Devnet wallet funding or permitted faucet action is needed. Avoid embedding private key material or automated wallet keys in persisted GitHub logs.
+The gateway is bound to **localhost port 3000** by `compose.yaml`; the worker port is not published. **Docker Compose deployment smoke passed** on GitHub Actions https://github.com/ThunderKhan/alloc/actions/runs/42325153752 : actual Docker build of both services, readiness, fixed model/price/recipient checks, protected request route, and persisted `/data` marker across gateway restart. This is not a publicly deployed URL and does not prove wallet signing. For external public demo, configure a separately managed HTTPS reverse proxy with explicit upload size cap and persistent storage, then verify full flow through that public origin. No hosting purchased or provisioned yet; public app URL **unknown**. Public Devnet RPC `requestAirdrop` returned HTTP 410 in live smoke run https://github.com/ThunderKhan/alloc/actions/runs/42324588291 (2026-11-07 UTC). The smoke test exited at its faucet step **before creating a quote or broadcasting any payment**. It is not real settlement evidence. User-controlled Devnet wallet funding or permitted faucet action is needed. Avoid embedding private key material or automated wallet keys in persisted GitHub logs.
 
 ## Configuration / wallet boundary
 
@@ -88,9 +93,9 @@ If Devnet RPC fails, check the **same** candidate signature on an independently 
 | Check | Status as of this handoff |
 | --- | --- |
 | Code files and documented architecture | Implemented in feature branch |
-| Unit payment parsing/signature hostility tests (`tests/chain.test.ts`) | **PASS** on GitHub Actions run 42324749538 |
-| SQLite UNIQUE claims/capability/restart read (`tests/db.test.ts`) | **PASS** in CI 42324749538; 10 competing separate Node processes claim exactly once |
-| Worker auth/validation/forged-input rejection tests | **6 passed** in CI 42324749538 |
+| Unit payment parsing/signature hostility tests (`tests/chain.test.ts`) | **PASS** on GitHub Actions run 42325487964 |
+| SQLite UNIQUE claims/capability/restart read (`tests/db.test.ts`) | **PASS** in CI 42325487964; 10 competing separate Node processes claim exactly once |
+| Worker auth/validation/forged-input rejection tests | **6 passed** in CI 42325487964 |
 | Fresh real PyTorch CPU inference on two images | **PASS** on GitHub Actions: opt-in test classified two fresh images with genuine CPU forward passes |
 | Node 24/npm resolution, exact lockfile, TS/Next build | **PASS** on GitHub Actions run 42324361698 |
 | Browser width 360/768/1440 and 5 disconnected/pending/failed/success fixture UI checks | **5 passed in Chromium**; actual wallet signing/keyboard manual review pending |
@@ -99,7 +104,7 @@ If Devnet RPC fails, check the **same** candidate signature on an independently 
 | Persistent deployment and two demo rehearsals | Not performed |
 | Short public video, screenshots, submitted entry | Not performed |
 
-CI found vulnerabilities in the original Next 16.3.8/Zod 4.1.12 pins; updated to patched Next 16.4.5 and Zod 4.6.7. Latest npm audit --omit=dev produced **no production vulnerability entries**; npm audit still flagged 3 **development-only** advisories (1 moderate, 2 critical), pending a dev dependency audit/fix.
+CI found vulnerabilities in the original Next 16.3.8/Zod 4.1.12 pins; updated to patched Next 16.4.5 and Zod 4.6.7. Latest npm audit produced **zero advisories for both runtime and development dependencies** following Vitest 4.1.12 upgrade (GitHub Actions 42325487964).
 
 The main release gate remains **one authentic paid Devnet inference tied to its matching Explorer receipt**. A mock payment or prefilled prediction cannot satisfy it.
 
